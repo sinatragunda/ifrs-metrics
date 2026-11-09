@@ -1,0 +1,2 @@
+- [Product naming](product-relationship.md) — Use IFRS Lab as the user-facing product name in the existing app.
+- [Generated API validation](generated-api-validation.md) — API hooks need a query provider, and generated schemas may need explicit server checks for array uniqueness.

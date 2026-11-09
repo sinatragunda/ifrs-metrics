@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "IFRS Lab"
+description = "IFRS Lab helps teams organize IFRS projects, import source data, and review analysis in a browser workspace."
+version = "1.0.0"
+id = "artifacts/stat-lab"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20701
+
+[services.development]
+run = "pnpm --filter @workspace/stat-lab run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/stat-lab", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/stat-lab/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20701"
+BASE_PATH = "/"

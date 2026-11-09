@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IFRS Metrics – Upload your data, get IFRS schedules</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF3F6; --surface:#FFFFFF; --ink:#12263A; --muted:#4C6174; --line:#C9D6DF;
+  --accent:#0F7B6C; --accent-ink:#FFFFFF; --warn-bg:#FFE9A8; --warn-ink:#4A3600;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E1B27; --surface:#162736; --ink:#E6EEF4; --muted:#9FB3C4; --line:#2A4054;
+    --accent:#3CC4AE; --accent-ink:#06231E; --warn-bg:#4A3A0B; --warn-ink:#FFE9A8;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1B27; --surface:#162736; --ink:#E6EEF4; --muted:#9FB3C4; --line:#2A4054;
+  --accent:#3CC4AE; --accent-ink:#06231E; --warn-bg:#4A3A0B; --warn-ink:#FFE9A8;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.55;font-size:17px}
+.wrap{max-width:1040px;margin:0 auto;padding:0 22px}
+.banner{background:var(--warn-bg);color:var(--warn-ink);text-align:center;padding:10px 16px;font-weight:600;font-size:15px}
+header.top{display:flex;justify-content:space-between;align-items:center;padding:22px 0}
+.logo{font-weight:800;font-size:20px;letter-spacing:-.01em}
+.logo span{color:var(--accent)}
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:36px 0 64px}
+h1{font-size:clamp(34px,5.4vw,58px);line-height:1.04;letter-spacing:-.025em;font-weight:800;margin:0 0 18px}
+.lead{color:var(--muted);max-width:50ch;margin:0 0 26px;font-size:19px}
+.btn{display:inline-block;background:var(--accent);color:var(--accent-ink);padding:13px 22px;border-radius:8px;font-weight:600;text-decoration:none}
+.btn:focus-visible,a:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.sched{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;overflow-x:auto}
+.sched h2{font-size:14px;margin:0 0 10px;font-weight:600;color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14.5px;min-width:380px}
+th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--muted)}
+tr:last-child td{border-bottom:0}
+.note{font-size:13px;color:var(--muted);margin:10px 0 0}
+section{padding:54px 0;border-top:1px solid var(--line)}
+h2.s{font-size:clamp(26px,3.6vw,36px);letter-spacing:-.02em;margin:0 0 10px;line-height:1.1}
+.sub{color:var(--muted);margin:0 0 30px;max-width:60ch}
+.stds{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.std{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px}
+.std h3{margin:0 0 4px;font-size:22px}
+.std .what{color:var(--muted);margin:0 0 14px;font-size:15px}
+.std ul{margin:0;padding-left:18px;font-size:15.5px}
+.std li{margin-bottom:6px}
+.tag{display:inline-block;font-size:13px;font-weight:600;background:var(--warn-bg);color:var(--warn-ink);padding:2px 9px;border-radius:99px;margin-bottom:12px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;counter-reset:s;padding:0;margin:0;list-style:none}
+.steps li{counter-increment:s}
+.steps li::before{content:counter(s);display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:800;margin-bottom:10px}
+.steps b{display:block;font-size:19px;margin-bottom:4px}
+.steps span{color:var(--muted);font-size:15.5px}
+.cta{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:34px;text-align:center}
+.cta p{color:var(--muted);margin:0 auto 22px;max-width:52ch}
+footer{padding:30px 0 44px;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
+@media (max-width:820px){
+  .hero,.stds,.steps{grid-template-columns:1fr}
+  .hero{padding-top:12px}
+}
+</style>
+</head>
+<body>
+<div class="banner" role="status">We’re still building this site. Features below are in development and not yet available.</div>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">IFRS <span>Metrics</span></div>
+  </header>
+
+  <div class="hero">
+    <div>
+      <h1>Upload your data. Get your IFRS schedules.</h1>
+      <p class="lead">We’re building a tool that turns your spreadsheets into IFRS 16, IFRS 9 and IFRS 17 calculations, journal entries and disclosure-ready reports, with every number traceable.</p>
+      <a class="btn" href="mailto:hello@example.com?subject=IFRS%20Metrics%20early%20access">Join the early-access list</a>
+    </div>
+    <div class="sched" aria-label="Example lease schedule">
+      <h2>Sample IFRS 16 lease schedule (illustrative)</h2>
+      <table>
+        <thead><tr><th>Year</th><th>Opening liability</th><th>Interest</th><th>Payment</th><th>Closing</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>100,000</td><td>8,000</td><td>(30,000)</td><td>78,000</td></tr>
+          <tr><td>2</td><td>78,000</td><td>6,240</td><td>(30,000)</td><td>54,240</td></tr>
+          <tr><td>3</td><td>54,240</td><td>4,339</td><td>(30,000)</td><td>28,579</td></tr>
+          <tr><td>4</td><td>28,579</td><td>2,286</td><td>(30,000)</td><td>865</td></tr>
+        </tbody>
+      </table>
+      <p class="note">Example figures at an 8% discount rate. Final-year rounding left as is.</p>
+    </div>
+  </div>
+
+  <section>
+    <h2 class="s">Standards we’re building support for</h2>
+    <p class="sub">We’re starting with three standards where finance teams lose the most time in spreadsheets.</p>
+    <div class="stds">
+      <article class="std">
+        <span class="tag">In development</span>
+        <h3>IFRS 16</h3>
+        <p class="what">Leases</p>
+        <ul>
+          <li>Lease liability and right-of-use asset schedules</li>
+          <li>Modifications, remeasurements and short-term exemptions</li>
+          <li>Journal entries and maturity analysis</li>
+        </ul>
+      </article>
+      <article class="std">
+        <span class="tag">In development</span>
+        <h3>IFRS 9</h3>
+        <p class="what">Financial instruments</p>
+        <ul>
+          <li>Expected credit loss (ECL) staging</li>
+          <li>Probability of default, loss given default and exposure inputs you control</li>
+          <li>Provision movement and disclosure tables</li>
+        </ul>
+      </article>
+      <article class="std">
+        <span class="tag">In development</span>
+        <h3>IFRS 17</h3>
+        <p class="what">Insurance contracts</p>
+        <ul>
+          <li>Groups of contracts and measurement models</li>
+          <li>Contractual service margin (CSM) roll-forward</li>
+          <li>Insurance revenue and finance expense reporting</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="s">How it will work</h2>
+    <p class="sub">Three steps from raw data to a report your auditor can follow.</p>
+    <ol class="steps">
+      <li><b>Upload</b><span>Use our template or your own Excel or CSV file. We check it and flag errors before anything is calculated.</span></li>
+      <li><b>Set your assumptions</b><span>Discount rates, lease terms, default rates and other judgments stay in your hands and are recorded.</span></li>
+      <li><b>Download</b><span>Get schedules, journal entries and a report in Excel and PDF, each number linked to its source row.</span></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="cta">
+      <h2 class="s">Want to be first to try it?</h2>
+      <p>Leave your email and tell us which standard you need. We’ll invite early users as each one is ready.</p>
+      <a class="btn" href="mailto:hello@example.com?subject=IFRS%20Metrics%20early%20access">Join the early-access list</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>IFRS Metrics is under construction. Outputs are calculation aids and do not replace professional accounting judgment or audit.</p>
+  </footer>
+</div>
+</body>
+</html>

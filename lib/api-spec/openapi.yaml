@@ -1,0 +1,107 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: ifrs-metrics
+    description: IFRS Metrics interest registration
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /ifrs-metrics/interest:
+    post:
+      operationId: submitIfrsMetricsInterest
+      tags: [ifrs-metrics]
+      summary: Register interest in IFRS Metrics
+      description: Stores a finance team's interest in product updates.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IfrsMetricsInterestRequest"
+      responses:
+        "201":
+          description: Interest registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IfrsMetricsInterestResponse"
+        "200":
+          description: This email was already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IfrsMetricsInterestResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    IfrsMetricsInterestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 3
+          maxLength: 254
+        standards:
+          type: array
+          uniqueItems: true
+          maxItems: 3
+          items:
+            type: string
+            enum: [IFRS 16, IFRS 9, IFRS 17]
+        consent:
+          type: boolean
+          enum: [true]
+      required:
+        - email
+        - consent
+    IfrsMetricsInterestResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        alreadyRegistered:
+          type: boolean
+      required:
+        - message
+        - alreadyRegistered
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
