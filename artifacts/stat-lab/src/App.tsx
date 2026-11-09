@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Activity, ArrowDownToLine, ArrowRight, BarChart3, Check, ChevronDown, ChevronRight, CircleHelp, Database, FileSpreadsheet, Filter, FlaskConical, FolderOpen, FolderPlus, Layers3, MessageSquareText, PanelLeftClose, PanelLeftOpen, Search, Sparkles, Table2, Trash2, Upload, UserRound, X } from 'lucide-react';
 import { ClerkProvider, Show, SignIn, SignUp, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
@@ -7,6 +7,27 @@ import { Link, Redirect, Route, Router as WouterRouter, Switch, useLocation } fr
 import * as XLSX from 'xlsx';
 import NotFound from '@/pages/not-found';
 import IfrsMetrics from '@/pages/IfrsMetrics';
+
+type SessionUser = {
+  id: string;
+  fullName?: string | null;
+  primaryEmailAddress?: { emailAddress: string } | null;
+} | null;
+
+const SessionUserContext = createContext<SessionUser>(null);
+const useSessionUser = () => useContext(SessionUserContext);
+
+function isPublishableKey(key: string): boolean {
+  if (!key.startsWith('pk_test_') && !key.startsWith('pk_live_')) return false;
+  const encoded = key.split('_')[2];
+  if (!encoded) return false;
+  try {
+    const decoded = atob(encoded);
+    return decoded.endsWith('$') && !decoded.slice(0, -1).includes('$') && decoded.includes('.');
+  } catch {
+    return false;
+  }
+}
 
 type Field = { name: string; type: string };
 type Dataset = { name: string; columns: Field[]; rows: Record<string, string | number | null>[] };
@@ -174,7 +195,7 @@ const twoSidedTPValue = (t: number, degreesOfFreedom: number) => regularizedBeta
 const numericFields = (d: Dataset) => d.columns.filter((c) => c.type === 'number').map((c) => c.name);
 
 function Workspace() {
-  const { user } = useUser();
+  const user = useSessionUser();
   useEffect(() => {
     document.title = 'IFRS Lab workspace';
   }, []);
@@ -662,9 +683,12 @@ function Workspace() {
 }
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
-const clerkPubKey = publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+const configuredClerkKey = String(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? '');
+const clerkEnabled = isPublishableKey(configuredClerkKey);
+const clerkPubKey = clerkEnabled
+  ? publishableKeyFromHost(window.location.hostname, configuredClerkKey)
+  : '';
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
-if (!clerkPubKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY');
 const clerkAppearance = {
   theme: shadcn,
   cssLayerName: 'clerk',
@@ -788,7 +812,7 @@ function CheckoutReviewPage() {
 }
 
 function WorkspaceHome() {
-  const { user } = useUser();
+  const user = useSessionUser();
   const [, setLocation] = useLocation();
   const [store, setStore] = useState<ProjectStore>(readProjectStore);
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
@@ -822,7 +846,7 @@ function WorkspaceHome() {
     setLocation('/workspace/app');
   };
   return <main className="min-h-screen bg-[#f5f4ed] text-[#263741]">
-    <Show when="signed-out"><div className="flex flex-wrap items-center justify-center gap-3 bg-[#f7e5b1] px-4 py-3 text-center text-xs text-[#574526]"><strong>Demo workspace</strong><span>Sample data and projects are saved only in this browser.</span></div></Show>
+    {!user && <div className="flex flex-wrap items-center justify-center gap-3 bg-[#f7e5b1] px-4 py-3 text-center text-xs text-[#574526]"><strong>Demo workspace</strong><span>Sample data and projects are saved only in this browser.</span></div>}
     <header className="border-b border-[#e2dfd5] bg-[#fbfaf6]">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-5">
         <div>
@@ -1107,7 +1131,56 @@ function AccountBillingRoute() {
 }
 
 function WorkspaceAppRoute() {
-  return <><Show when="signed-in"><Workspace/></Show><Show when="signed-out"><div><div className="flex flex-wrap items-center justify-center gap-3 bg-[#f7e5b1] px-4 py-3 text-center text-xs text-[#574526]"><strong>Demo workspace</strong><span>This session uses sample data saved only in this browser.</span></div><Workspace/></div></Show></>;
+  const user = useSessionUser();
+  if (user) return <Workspace/>;
+  return <div><div className="flex flex-wrap items-center justify-center gap-3 bg-[#f7e5b1] px-4 py-3 text-center text-xs text-[#574526]"><strong>Demo workspace</strong><span>This session uses sample data saved only in this browser.</span></div><Workspace/></div>;
+}
+
+function ClerkSessionBridge({ children }: { children: ReactNode }) {
+  const { user } = useUser();
+  const sessionUser: SessionUser = user
+    ? {
+        id: user.id,
+        fullName: user.fullName,
+        primaryEmailAddress: user.primaryEmailAddress
+          ? { emailAddress: user.primaryEmailAddress.emailAddress }
+          : null,
+      }
+    : null;
+  return <SessionUserContext.Provider value={sessionUser}>{children}</SessionUserContext.Provider>;
+}
+
+function ClerkSetupPage() {
+  return (
+    <main className="grid min-h-[100dvh] place-items-center bg-[#eef4f6] px-4">
+      <div className="max-w-md rounded-xl bg-white p-7 text-center shadow-sm">
+        <h1 className="text-2xl font-bold text-[#142a3d]">Clerk keys required</h1>
+        <p className="mt-2 text-sm text-[#64748b]">
+          Add a real <code>pk_test_...</code> publishable key and matching secret key to the package <code>.env</code> files, then restart the apps.
+        </p>
+        <Link href="/" className="mt-5 inline-flex rounded-md bg-[#147b69] px-4 py-2 text-sm font-semibold text-white">Back to home</Link>
+      </div>
+    </main>
+  );
+}
+
+function LocalRoutes() {
+  return (
+    <SessionUserContext.Provider value={null}>
+      <Switch>
+        <Route path="/" component={IfrsMetrics}/>
+        <Route path="/ifrs" component={IfrsMetrics}/>
+        <Route path="/workspace" component={WorkspaceEntry}/>
+        <Route path="/workspace/app" component={WorkspaceAppRoute}/>
+        <Route path="/account/billing" component={ClerkSetupPage}/>
+        <Route path="/account" component={ClerkSetupPage}/>
+        <Route path="/checkout" component={ClerkSetupPage}/>
+        <Route path="/sign-in/*?" component={ClerkSetupPage}/>
+        <Route path="/sign-up/*?" component={ClerkSetupPage}/>
+        <Route component={NotFound}/>
+      </Switch>
+    </SessionUserContext.Provider>
+  );
 }
 
 function ClerkRoutes() {
@@ -1123,23 +1196,29 @@ function ClerkRoutes() {
     routerPush={(to) => setLocation(stripBase(to))}
     routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
   >
-    <Switch>
-      <Route path="/" component={HomeRedirect}/>
-      <Route path="/ifrs" component={IfrsMetrics}/>
-      <Route path="/workspace" component={WorkspaceEntry}/>
-      <Route path="/workspace/app" component={WorkspaceAppRoute}/>
-      <Route path="/account/billing" component={AccountBillingRoute}/>
-      <Route path="/account" component={AccountRoute}/>
-      <Route path="/checkout" component={CheckoutReviewPage}/>
-      <Route path="/sign-in/*?" component={SignInPage}/>
-      <Route path="/sign-up/*?" component={SignUpPage}/>
-      <Route component={NotFound}/>
-    </Switch>
+    <ClerkSessionBridge>
+      <Switch>
+        <Route path="/" component={HomeRedirect}/>
+        <Route path="/ifrs" component={IfrsMetrics}/>
+        <Route path="/workspace" component={WorkspaceEntry}/>
+        <Route path="/workspace/app" component={WorkspaceAppRoute}/>
+        <Route path="/account/billing" component={AccountBillingRoute}/>
+        <Route path="/account" component={AccountRoute}/>
+        <Route path="/checkout" component={CheckoutReviewPage}/>
+        <Route path="/sign-in/*?" component={SignInPage}/>
+        <Route path="/sign-up/*?" component={SignUpPage}/>
+        <Route component={NotFound}/>
+      </Switch>
+    </ClerkSessionBridge>
   </ClerkProvider>;
 }
 
 function App() {
-  return <WouterRouter base={basePath}><ClerkRoutes/></WouterRouter>;
+  return (
+    <WouterRouter base={basePath}>
+      {clerkEnabled ? <ClerkRoutes/> : <LocalRoutes/>}
+    </WouterRouter>
+  );
 }
 
 export default App;

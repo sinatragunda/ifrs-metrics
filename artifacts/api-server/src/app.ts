@@ -37,14 +37,27 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(
-  clerkMiddleware((req) => ({
-    publishableKey: publishableKeyFromHost(
-      getClerkProxyHost(req) ?? "",
-      process.env.CLERK_PUBLISHABLE_KEY,
-    ),
-  })),
-);
+const clerkSecretKey = process.env.CLERK_SECRET_KEY ?? "";
+const clerkPublishableKey = process.env.CLERK_PUBLISHABLE_KEY ?? "";
+const clerkConfigured =
+  clerkSecretKey.startsWith("sk_") &&
+  !clerkSecretKey.includes("replace_me") &&
+  clerkPublishableKey.startsWith("pk_");
+
+if (clerkConfigured) {
+  app.use(
+    clerkMiddleware((req) => ({
+      publishableKey: publishableKeyFromHost(
+        getClerkProxyHost(req) ?? "",
+        clerkPublishableKey,
+      ),
+    })),
+  );
+} else {
+  logger.warn(
+    "Clerk keys are missing or placeholders; auth middleware is disabled for local development.",
+  );
+}
 
 app.use("/api", router);
 

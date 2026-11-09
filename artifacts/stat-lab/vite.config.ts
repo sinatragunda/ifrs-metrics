@@ -1,11 +1,18 @@
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
-const rawPort = process.env.PORT;
+const envDir = import.meta.dirname;
+// Package .env wins over inherited shell env (e.g. API PORT=8080).
+const env = {
+  ...process.env,
+  ...loadEnv(process.env.NODE_ENV ?? 'development', envDir, ''),
+};
+
+const rawPort = env.PORT;
 
 if (!rawPort) {
   throw new Error(
@@ -19,7 +26,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
+const basePath = env.BASE_PATH;
 
 if (!basePath) {
   throw new Error(
@@ -69,6 +76,12 @@ export default defineConfig({
     strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: env.API_PROXY_TARGET ?? 'http://127.0.0.1:8080',
+        changeOrigin: true,
+      },
+    },
     fs: {
       strict: true,
     },
