@@ -15,7 +15,7 @@ export function MarketplaceNav({
   return (
     <header className="sticky top-0 z-30 border-b border-[#d2dfe3] bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
-        <Link href="/loans-deposits" className="flex shrink-0 items-center gap-2.5">
+        <Link href="/ifrs" className="flex shrink-0 items-center gap-2.5">
           <span className="grid h-8 w-8 place-items-center rounded-[7px_7px_7px_2px] bg-[#0e786b] text-[11px] font-bold tracking-tight text-[#f4faf8]">
             IM
           </span>

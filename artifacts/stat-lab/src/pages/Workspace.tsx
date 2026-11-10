@@ -10,7 +10,7 @@ import { projectStandardLabels, type ChatMessage, type Dataset, type Project, ty
 export function Workspace() {
   const user = useSessionUser();
   useEffect(() => {
-    document.title = 'IFRS Lab workspace';
+    document.title = 'IFRS Lab Metrics workspace';
   }, []);
 
   const [saved, setSaved] = useState<Saved>(() => {
@@ -277,7 +277,7 @@ export function Workspace() {
       <div className={`flex items-center pb-4 ${sidebarCollapsed ? 'flex-col gap-3' : 'gap-2 px-1'}`}>
         <div className={`flex min-w-0 items-center ${sidebarCollapsed ? 'justify-center' : 'flex-1 gap-2.5'}`}>
           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] bg-[#0078d4] text-white shadow-sm"><Activity size={16}/></div>
-          {!sidebarCollapsed && <div className="min-w-0"><div className="truncate text-[13px] font-semibold tracking-tight text-[#1f2328]">IFRS Lab</div><div className="text-[10px] text-[#605e5c]">File explorer</div></div>}
+          {!sidebarCollapsed && <div className="min-w-0"><div className="truncate text-[13px] font-semibold tracking-tight text-[#1f2328]">IFRS Metrics Lab</div><div className="text-[10px] text-[#605e5c]">File Explorer</div></div>}
         </div>
         <button data-testid="button-toggle-sidebar" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} className="grid h-7 w-7 shrink-0 place-items-center rounded-[4px] border border-[#d8dde4] bg-white text-[#605e5c] hover:bg-[#edebe9]" title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed}>
           {sidebarCollapsed ? <PanelLeftOpen size={14}/> : <PanelLeftClose size={14}/>}

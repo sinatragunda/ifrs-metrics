@@ -1,10 +1,32 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowRight, FileSpreadsheet, FolderOpen, FolderPlus, UserRound } from 'lucide-react';
+import { ArrowRight, FileSpreadsheet, FolderOpen, FolderPlus, UserPlus, UserRound } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useSessionUser } from '@/auth/session';
 import { readProjectStore } from '@/lib/project-store';
 import { DEFAULT_WORKSPACE, projectStandardLabels, type Project, type ProjectStore, type WorkspaceRecord } from '@/lib/workspace-types';
 import { Workspace } from '@/pages/Workspace';
+
+type PendingInvite = {
+  id: string;
+  email: string;
+  workspaceId: string;
+  projectIds: string[];
+  invitedAt: string;
+};
+
+const INVITES_STORAGE_KEY = 'statlab-workspace-invites-v1';
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function readPendingInvites(): PendingInvite[] {
+  try {
+    const raw = localStorage.getItem(INVITES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed as PendingInvite[] : [];
+  } catch {
+    return [];
+  }
+}
 
 export function latestProjectActivity(project: Project) {
   return project.files.reduce((latest, file) => file.importedAt > latest ? file.importedAt : latest, project.createdAt);
@@ -15,13 +37,18 @@ export function WorkspaceHome() {
   const [, setLocation] = useLocation();
   const [store, setStore] = useState<ProjectStore>(readProjectStore);
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteProjectIds, setInviteProjectIds] = useState<string[]>([]);
+  const [inviteFeedback, setInviteFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
   const [error, setError] = useState('');
   const workspaces = store.workspaces.filter((workspace) => workspace.isDefault || (user ? workspace.ownerId === user.id : !workspace.ownerId));
   const activeWorkspace = workspaces.find((workspace) => workspace.id === store.activeWorkspaceId) ?? DEFAULT_WORKSPACE;
   const projects = store.projects
     .filter((project) => project.workspaceId === activeWorkspace.id && (user ? project.ownerId === user.id : !project.ownerId))
     .sort((a, b) => latestProjectActivity(b).localeCompare(latestProjectActivity(a)));
+  const allProjectsSelected = projects.length > 0 && inviteProjectIds.length === projects.length;
   const persist = (next: ProjectStore) => {
     setStore(next);
     try { localStorage.setItem('statlab-projects-v1', JSON.stringify(next)); setError(''); }
@@ -30,6 +57,8 @@ export function WorkspaceHome() {
   const chooseWorkspace = (id: string) => {
     const nextProject = store.projects.find((project) => project.workspaceId === id && (user ? project.ownerId === user.id : !project.ownerId));
     persist({ ...store, activeWorkspaceId: id, activeProjectId: nextProject?.id ?? null, activeFileId: null });
+    setInviteProjectIds([]);
+    setInviteFeedback(null);
   };
   const createWorkspace = (event: FormEvent) => {
     event.preventDefault();
@@ -39,6 +68,56 @@ export function WorkspaceHome() {
     persist({ ...store, workspaces: [...store.workspaces, created], activeWorkspaceId: created.id, activeProjectId: null, activeFileId: null });
     setWorkspaceName('');
     setShowCreateWorkspace(false);
+  };
+  const toggleInvitePanel = () => {
+    setShowInvite((open) => {
+      const next = !open;
+      if (next) {
+        setShowCreateWorkspace(false);
+        setInviteFeedback(null);
+      }
+      return next;
+    });
+  };
+  const toggleInviteProject = (projectId: string) => {
+    setInviteProjectIds((current) =>
+      current.includes(projectId) ? current.filter((id) => id !== projectId) : [...current, projectId],
+    );
+  };
+  const toggleSelectAllProjects = () => {
+    setInviteProjectIds(allProjectsSelected ? [] : projects.map((project) => project.id));
+  };
+  const sendInvite = (event: FormEvent) => {
+    event.preventDefault();
+    const email = inviteEmail.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(email)) {
+      setInviteFeedback({ kind: 'error', message: 'Enter a valid email address.' });
+      return;
+    }
+    if (!inviteProjectIds.length) {
+      setInviteFeedback({ kind: 'error', message: 'Select at least one project, or use Select all.' });
+      return;
+    }
+    const invite: PendingInvite = {
+      id: `invite-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      email,
+      workspaceId: activeWorkspace.id,
+      projectIds: inviteProjectIds,
+      invitedAt: new Date().toISOString(),
+    };
+    try {
+      const next = [...readPendingInvites(), invite];
+      localStorage.setItem(INVITES_STORAGE_KEY, JSON.stringify(next));
+      const count = inviteProjectIds.length;
+      setInviteFeedback({
+        kind: 'success',
+        message: `Invite saved for ${email} · ${count} ${count === 1 ? 'project' : 'projects'} in ${activeWorkspace.name}.`,
+      });
+      setInviteEmail('');
+      setInviteProjectIds([]);
+    } catch {
+      setInviteFeedback({ kind: 'error', message: 'Could not save the invite in this browser.' });
+    }
   };
   const openProject = (project: Project) => {
     persist({ ...store, activeWorkspaceId: activeWorkspace.id, activeProjectId: project.id, activeFileId: project.files[0]?.id ?? null });
@@ -176,13 +255,105 @@ export function WorkspaceHome() {
               {activeWorkspace.isDefault && <span className="rounded-full bg-[#dcece8] px-2.5 py-1 text-[10px] font-semibold text-[#095e55]">Default workspace</span>}
             </div>
           </div>
-          <button onClick={() => setShowCreateWorkspace((value) => !value)} className="btn-ghost"><FolderPlus size={16}/> New workspace</button>
+          <div className="flex flex-wrap items-center gap-2">
+            {user && <button type="button" onClick={toggleInvitePanel} className="btn-ghost"><UserPlus size={16}/> Invite</button>}
+            <button type="button" onClick={() => { setShowCreateWorkspace((value) => !value); setShowInvite(false); }} className="btn-ghost"><FolderPlus size={16}/> New workspace</button>
+          </div>
         </div>
         {showCreateWorkspace && <form onSubmit={createWorkspace} className="mt-4 flex flex-wrap gap-2 rounded-xl bg-[#f4f8f8] p-3">
           <input autoFocus value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} aria-label="Workspace name" placeholder="e.g. Client reporting" className="min-w-[220px] flex-1 rounded-lg border border-[#d2dfe3] bg-white px-3 py-2 text-sm"/>
           <button disabled={!workspaceName.trim()} className="btn-primary disabled:opacity-50">Create workspace</button>
           <button type="button" onClick={() => setShowCreateWorkspace(false)} className="btn-secondary">Cancel</button>
         </form>}
+        {user && showInvite && (
+          <form onSubmit={sendInvite} className="mt-4 space-y-3 rounded-xl bg-[#f4f8f8] p-3">
+            <div>
+              <label htmlFor="invite-email" className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">Invite by email</label>
+              <input
+                id="invite-email"
+                autoFocus
+                type="email"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="colleague@company.com"
+                className="w-full min-w-[220px] rounded-lg border border-[#d2dfe3] bg-white px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">Projects to share</p>
+                <button
+                  type="button"
+                  onClick={toggleSelectAllProjects}
+                  disabled={!projects.length}
+                  className="text-[11px] font-semibold text-[#147b69] hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
+                >
+                  {allProjectsSelected ? 'Clear all' : 'Select all'}
+                </button>
+              </div>
+              {!projects.length ? (
+                <p className="rounded-lg border border-dashed border-[#d2dfe3] bg-white px-3 py-3 text-sm text-[#64748b]">
+                  No projects in this workspace yet. Create a project before inviting someone.
+                </p>
+              ) : (
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-[#d2dfe3] bg-white p-2">
+                  {projects.map((project) => {
+                    const checked = inviteProjectIds.includes(project.id);
+                    return (
+                      <label
+                        key={project.id}
+                        className={`flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-2 text-sm transition-colors ${
+                          checked ? 'bg-[#dcece8]/70' : 'hover:bg-[#f4f8f8]'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleInviteProject(project.id)}
+                          className="mt-0.5 accent-[#0e786b]"
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold text-[#142a3d]">{project.name}</span>
+                          <span className="block text-[11px] text-[#64748b]">{projectStandardLabels[project.standard]}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {inviteFeedback && (
+              <p
+                role="status"
+                className={`text-sm ${inviteFeedback.kind === 'success' ? 'text-[#095e55]' : 'text-[#922f27]'}`}
+              >
+                {inviteFeedback.message}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                disabled={!inviteEmail.trim() || !inviteProjectIds.length}
+                className="btn-primary disabled:opacity-50"
+              >
+                Send invite
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowInvite(false);
+                  setInviteEmail('');
+                  setInviteProjectIds([]);
+                  setInviteFeedback(null);
+                }}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+            </div>
+            <p className="text-[11px] text-[#64748b]">Invites are stored in this browser for now. Email delivery is not sent yet.</p>
+          </form>
+        )}
       </section>
       {error && <p role="alert" className="mt-3 text-sm text-[#922f27]">{error}</p>}
       <section className="mt-7">

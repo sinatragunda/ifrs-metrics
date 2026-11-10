@@ -134,10 +134,6 @@ export function AccountProjectsPage() {
 
           <div className="mt-3.5 overflow-x-auto border-t border-[#d2dfe3] pt-3.5">
             <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-[11px] text-[#64748b]">
-                <span className="rounded-[3px] bg-[#e7f3ef] px-1.5 py-1 text-[10px] font-bold text-[#0f6556]">Billing</span>
-                <span>Illustrative movement only</span>
-              </div>
               <div className="flex gap-1">
                 <button type="button" onClick={() => setBillingHistoryOpen(true)} className="btn-secondary !px-1.5 !py-0.5 !text-[10px]">Expand</button>
                 <Link href="/account/billing" className="btn-ghost !px-1.5 !py-0.5 !text-[10px]">Report</Link>

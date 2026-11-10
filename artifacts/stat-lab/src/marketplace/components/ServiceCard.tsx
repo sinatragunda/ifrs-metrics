@@ -129,7 +129,7 @@ export const ServiceCard = memo(function ServiceCard({
             </div>
             <div className="grid grid-cols-2 border-b border-[#e7edef] text-[11px]">
               <div className="border-r border-[#e7edef] px-2 py-2 font-semibold text-[#095e55]">Price</div>
-              <div className="px-2 py-2 text-right font-mono font-bold tabular-nums text-[#142a3d]">
+              <div className="px-2 py-2 text-right font-mono font-medium tabular-nums text-[#52687a]">
                 {tier.price === 0 ? "Free" : `$${tier.price.toFixed(2)}${tier.period}`}
               </div>
             </div>
