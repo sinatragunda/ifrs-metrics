@@ -4,7 +4,7 @@ export const MARKETPLACE_CART_KEY = "ifrs-unified-cart-v1";
 export const LEGACY_MARKETPLACE_CART_KEY = "ifrs-marketplace-cart-v1";
 export const LEGACY_LAB_CHECKOUT_KEY = "ifrs-lab-checkout";
 export const CHECKOUT_RETURN_KEY = "ifrs-checkout-return";
-export const MARKETPLACE_RETURN_PATH = "/loans-deposits?cart=open";
+export const MARKETPLACE_RETURN_PATH = "/loans-deposits/marketplace?cart=open";
 export const LAB_RETURN_PATH = "/ifrs#pricing";
 
 export const LAB_SUBSCRIPTION_ID = "lab-subscription";
@@ -32,8 +32,10 @@ function normalizeItem(item: CartItem): CartItem {
 }
 
 export function labSelectionToCartItems(selection: LabCheckoutSelection): CartItem[] {
-  const items: CartItem[] = [
-    {
+  const items: CartItem[] = [];
+
+  if (selection.plan) {
+    items.push({
       serviceId: LAB_SUBSCRIPTION_ID,
       serviceName: "IFRS Lab · All reports",
       tierName: selection.plan === "fortnight" ? "Fortnightly" : "Monthly",
@@ -41,10 +43,8 @@ export function labSelectionToCartItems(selection: LabCheckoutSelection): CartIt
       period: selection.plan === "fortnight" ? "/fortnight" : "/mo",
       source: "lab",
       detail: `Renews ${selection.plan === "fortnight" ? "fortnightly" : "monthly"} · IFRS 16 / 9 / 17`,
-    },
-  ];
-
-  if (selection.lightSupport) {
+    });
+  } else if (selection.lightSupport) {
     items.push({
       serviceId: LAB_LIGHT_SUPPORT_ID,
       serviceName: "IFRS Lab · Light support",
@@ -54,9 +54,7 @@ export function labSelectionToCartItems(selection: LabCheckoutSelection): CartIt
       source: "lab",
       detail: "Requested tasks · tax excluded",
     });
-  }
-
-  if (selection.dedicatedSupport) {
+  } else if (selection.dedicatedSupport) {
     items.push({
       serviceId: LAB_DEDICATED_SUPPORT_ID,
       serviceName: "IFRS Lab · Dedicated support",
@@ -74,13 +72,15 @@ export function labSelectionToCartItems(selection: LabCheckoutSelection): CartIt
 function readLegacyLabItems(): CartItem[] {
   try {
     const value = JSON.parse(sessionStorage.getItem(LEGACY_LAB_CHECKOUT_KEY) || "null") as Partial<LabCheckoutSelection> | null;
-    if (!value || (value.plan !== "fortnight" && value.plan !== "monthly")) return [];
     const cadence = (item: unknown): item is "fortnight" | "monthly" => item === "fortnight" || item === "monthly";
-    return labSelectionToCartItems({
-      plan: value.plan,
-      lightSupport: cadence(value.lightSupport) ? value.lightSupport : null,
-      dedicatedSupport: cadence(value.dedicatedSupport) ? value.dedicatedSupport : null,
-    });
+    const plan = cadence(value?.plan) ? value.plan : null;
+    const lightSupport = cadence(value?.lightSupport) ? value.lightSupport : null;
+    const dedicatedSupport = cadence(value?.dedicatedSupport) ? value.dedicatedSupport : null;
+    if (!plan && !lightSupport && !dedicatedSupport) return [];
+    // Prefer a single option if legacy storage had multiple.
+    if (plan) return labSelectionToCartItems({ plan, lightSupport: null, dedicatedSupport: null });
+    if (lightSupport) return labSelectionToCartItems({ plan: null, lightSupport, dedicatedSupport: null });
+    return labSelectionToCartItems({ plan: null, lightSupport: null, dedicatedSupport });
   } catch {
     return [];
   }
@@ -116,14 +116,17 @@ export function writeMarketplaceCart(items: CartItem[]) {
   // Keep legacy keys in sync so older checkout readers stay coherent.
   sessionStorage.setItem(LEGACY_MARKETPLACE_CART_KEY, JSON.stringify(items.filter((item) => item.source === "marketplace")));
   const labSubscription = items.find((item) => item.serviceId === LAB_SUBSCRIPTION_ID);
-  if (labSubscription) {
-    const light = items.find((item) => item.serviceId === LAB_LIGHT_SUPPORT_ID);
-    const dedicated = items.find((item) => item.serviceId === LAB_DEDICATED_SUPPORT_ID);
-    const plan = labSubscription.period.includes("fortnight") ? "fortnight" : "monthly";
+  const light = items.find((item) => item.serviceId === LAB_LIGHT_SUPPORT_ID);
+  const dedicated = items.find((item) => item.serviceId === LAB_DEDICATED_SUPPORT_ID);
+  if (labSubscription || light || dedicated) {
     sessionStorage.setItem(
       LEGACY_LAB_CHECKOUT_KEY,
       JSON.stringify({
-        plan,
+        plan: labSubscription
+          ? labSubscription.period.includes("fortnight")
+            ? "fortnight"
+            : "monthly"
+          : null,
         lightSupport: light ? (light.period.includes("fortnight") ? "fortnight" : "monthly") : null,
         dedicatedSupport: dedicated
           ? dedicated.period.includes("fortnight")

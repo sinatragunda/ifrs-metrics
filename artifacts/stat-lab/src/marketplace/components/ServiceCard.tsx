@@ -49,111 +49,114 @@ export const ServiceCard = memo(function ServiceCard({
   const Icon = ICONS[service.icon] ?? Layers3;
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-lg border border-[#d2dfe3] bg-white transition-shadow duration-200 hover:shadow-md">
-      <div className="border-b border-[#d2dfe3] p-4">
-        <div className="mb-2 flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="grid h-10 w-10 place-items-center rounded-lg bg-[#dcece8] text-[#147b69]">
-              <Icon className="h-5 w-5" />
+    <article className="overflow-hidden rounded-[3px] border border-[#cbd8df] bg-white">
+      <div className="grid gap-0 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.9fr)]">
+        <div className="border-b border-[#cbd8df] p-4 lg:border-b-0 lg:border-r">
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[3px] border border-[#cbd8df] bg-[#f4f8f8] text-[#0e786b]">
+                <Icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-[13px] font-bold leading-tight tracking-[-.02em] text-[#142a3d]">
+                    {service.name}
+                  </h3>
+                  {service.badge && (
+                    <span className="rounded-[3px] border border-[#cbd8df] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[.06em] text-[#52687a]">
+                      {service.badge}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[.08em] text-[#0e786b]">
+                  {service.category}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold leading-tight text-[#142a3d]">{service.name}</h3>
-              <span className="text-xs text-[#64748b]">{service.category}</span>
+            <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
+              <StarRating rating={service.rating} />
+              <span className="font-mono text-[11px] font-semibold text-[#0e786b]">{service.rating}</span>
             </div>
           </div>
-          {service.badge && (
-            <span
-              className={`rounded-sm px-2 py-0.5 text-[10px] font-semibold ${
-                service.badge === "New"
-                  ? "bg-blue-100 text-blue-700"
-                  : service.badge === "Best Seller"
-                    ? "bg-[#142a3d] text-white"
-                    : "bg-green-100 text-green-700"
+          <p className="text-[12px] leading-relaxed text-[#52687a]">{service.description}</p>
+          <ul className="mt-3 grid gap-1 sm:grid-cols-2">
+            {tier.features.slice(0, 4).map((feature) => (
+              <li key={feature} className="flex items-start gap-1.5 text-[11px] text-[#40596b]">
+                <Check className="mt-0.5 h-3 w-3 shrink-0 text-[#0e786b]" />
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+          {tier.features.length > 4 && (
+            <p className="mt-1 text-[10px] text-[#64748b]">+{tier.features.length - 4} more workings</p>
+          )}
+        </div>
+
+        <div className="bg-[#f8faf9] p-4">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-[9px] font-bold uppercase tracking-[.1em] text-[#718392]">Plan assumptions</span>
+            {tier.popular && (
+              <span className="rounded-[3px] bg-[#dcece8] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[.06em] text-[#095e55]">
+                Popular
+              </span>
+            )}
+          </div>
+
+          <div className="mb-3 flex overflow-hidden rounded-[3px] border border-[#cbd8df] bg-white">
+            {service.tiers.map((item, index) => (
+              <button
+                key={item.name}
+                type="button"
+                onClick={() => setSelectedTier(index)}
+                className={`relative flex-1 py-1.5 text-[10px] font-bold uppercase tracking-[.05em] transition-colors ${
+                  index > 0 ? "border-l border-[#cbd8df]" : ""
+                }`}
+                style={
+                  selectedTier === index
+                    ? { backgroundColor: "#142a3d", color: "white" }
+                    : { backgroundColor: "white", color: "#52687a" }
+                }
+              >
+                {item.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="mb-3 border border-[#cbd8df] bg-white">
+            <div className="grid grid-cols-2 border-b border-[#cbd8df] text-[9px] font-bold uppercase tracking-[.06em] text-[#718392]">
+              <div className="border-r border-[#cbd8df] bg-[#f4f8f8] px-2 py-1.5">Field</div>
+              <div className="bg-[#f4f8f8] px-2 py-1.5 text-right">Value</div>
+            </div>
+            <div className="grid grid-cols-2 border-b border-[#e7edef] text-[11px]">
+              <div className="border-r border-[#e7edef] px-2 py-2 font-semibold text-[#095e55]">Price</div>
+              <div className="px-2 py-2 text-right font-mono font-bold tabular-nums text-[#142a3d]">
+                {tier.price === 0 ? "Free" : `$${tier.price.toFixed(2)}${tier.period}`}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 text-[11px]">
+              <div className="border-r border-[#e7edef] px-2 py-2 font-semibold text-[#095e55]">Reviews</div>
+              <div className="px-2 py-2 text-right font-mono tabular-nums text-[#40596b]">
+                {service.reviews.toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          {service.cartOption !== false && (
+            <button
+              type="button"
+              onClick={() => onAddToCart(service.id, tier)}
+              disabled={isCurrentTierInCart}
+              className={`btn-primary w-full ${
+                isCurrentTierInCart
+                  ? "cursor-default !border-[#eef4f6] !bg-[#eef4f6] !text-[#64748b] hover:!bg-[#eef4f6]"
+                  : ""
               }`}
             >
-              {service.badge}
-            </span>
-          )}
-        </div>
-        <p className="line-clamp-2 text-xs leading-relaxed text-[#64748b]">{service.description}</p>
-        <div className="mt-2 flex items-center gap-2">
-          <StarRating rating={service.rating} />
-          <span className="text-xs font-medium text-[#147b69]">{service.rating}</span>
-          <span className="text-xs text-[#64748b]">({service.reviews.toLocaleString()})</span>
-        </div>
-      </div>
-
-      <div className="px-4 pt-3">
-        <div className="flex overflow-hidden rounded-md border border-[#d2dfe3]">
-          {service.tiers.map((item, index) => (
-            <button
-              key={item.name}
-              type="button"
-              onClick={() => setSelectedTier(index)}
-              className={`relative flex-1 py-1.5 text-xs font-medium transition-colors ${index > 0 ? "border-l border-[#d2dfe3]" : ""}`}
-              style={
-                selectedTier === index
-                  ? { backgroundColor: "#142a3d", color: "white" }
-                  : { backgroundColor: "white", color: "#52708a" }
-              }
-            >
-              {item.name}
-              {item.popular && selectedTier !== index && (
-                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-[#147b69]" />
-              )}
+              {isCurrentTierInCart ? "✓ On schedule" : canSwitchPlan ? "Switch plan" : "Add to cart"}
             </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="px-4 pt-3">
-        <div className="flex items-baseline gap-1">
-          {tier.price === 0 ? (
-            <span className="text-2xl font-bold text-[#147b69]">Free</span>
-          ) : (
-            <>
-              <span className="text-2xl font-bold text-[#142a3d]">${tier.price.toFixed(2)}</span>
-              <span className="text-sm text-[#64748b]">{tier.period}</span>
-            </>
-          )}
-          {tier.popular && (
-            <span className="ml-auto rounded bg-[#dcece8] px-1.5 py-0.5 text-[10px] font-semibold text-[#147b69]">
-              Most Popular
-            </span>
           )}
         </div>
       </div>
-
-      <div className="flex-1 px-4 pb-3 pt-2">
-        <ul className="space-y-1">
-          {tier.features.slice(0, 4).map((feature) => (
-            <li key={feature} className="flex items-center gap-1.5 text-xs text-[#64748b]">
-              <Check className="h-3 w-3 shrink-0 text-[#147b69]" />
-              {feature}
-            </li>
-          ))}
-          {tier.features.length > 4 && (
-            <li className="pl-4 text-xs text-[#64748b]">+{tier.features.length - 4} more</li>
-          )}
-        </ul>
-      </div>
-
-      <div className="px-4 pb-4">
-        {service.cartOption !== false && (
-          <button
-            type="button"
-            onClick={() => onAddToCart(service.id, tier)}
-            disabled={isCurrentTierInCart}
-            className={`w-full rounded py-2 text-sm font-semibold transition-all active:scale-[0.98] ${
-              isCurrentTierInCart
-                ? "cursor-default bg-[#eef4f6] text-[#64748b]"
-                : "bg-[#147b69] text-white hover:bg-[#0f6556]"
-            }`}
-          >
-            {isCurrentTierInCart ? "✓ Added to cart" : canSwitchPlan ? "Switch Plan" : "Add to Cart"}
-          </button>
-        )}
-      </div>
-    </div>
+    </article>
   );
 });

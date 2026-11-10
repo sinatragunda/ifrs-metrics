@@ -78,10 +78,8 @@ export function IfrsMetrics() {
   const { cartItems, upsertLabSelection } = useMarketplaceCart();
   const [sampleIndex, setSampleIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<"fortnight" | "monthly">("fortnight");
-  const [lightSupportSelected, setLightSupportSelected] = useState(false);
+  const [pricingOption, setPricingOption] = useState<"fortnight" | "monthly" | "light" | "dedicated">("fortnight");
   const [lightSupportCadence, setLightSupportCadence] = useState<"fortnight" | "monthly">("monthly");
-  const [dedicatedSupportSelected, setDedicatedSupportSelected] = useState(false);
   const [dedicatedSupportCadence, setDedicatedSupportCadence] = useState<"fortnight" | "monthly">("monthly");
   const [interestEmail, setInterestEmail] = useState("");
   const [interestStandardsSelected, setInterestStandardsSelected] = useState<
@@ -111,16 +109,25 @@ export function IfrsMetrics() {
   const initialLiability = Object.keys(errors).length === 0
     ? calculateInitialLeaseLiability(inputs)
     : null;
-  const fortnightTotal = (selectedPlan === "fortnight" ? 3.99 : 0)
-    + (lightSupportSelected && lightSupportCadence === "fortnight" ? 80 : 0)
-    + (dedicatedSupportSelected && dedicatedSupportCadence === "fortnight" ? 180 : 0);
-  const monthlyTotal = (selectedPlan === "monthly" ? 6.99 : 0)
-    + (lightSupportSelected && lightSupportCadence === "monthly" ? 120 : 0)
-    + (dedicatedSupportSelected && dedicatedSupportCadence === "monthly" ? 300 : 0);
+  const selectedTotal =
+    pricingOption === "fortnight" ? { amount: 3.99, cadence: "fortnight" as const, label: "All reports · $3.99 per fortnight" }
+    : pricingOption === "monthly" ? { amount: 6.99, cadence: "monthly" as const, label: "All reports · $6.99 per month" }
+    : pricingOption === "light"
+      ? {
+          amount: lightSupportCadence === "fortnight" ? 80 : 120,
+          cadence: lightSupportCadence,
+          label: `Light support · $${lightSupportCadence === "fortnight" ? "80.00 per fortnight" : "120.00 per month"} (tax excluded)`,
+        }
+      : {
+          amount: dedicatedSupportCadence === "fortnight" ? 180 : 300,
+          cadence: dedicatedSupportCadence,
+          label: `Dedicated technical support · $${dedicatedSupportCadence === "fortnight" ? "180.00 per fortnight" : "300.00 per month"} (tax excluded)`,
+        };
   const sampleStandards = [
     { code: "IFRS 16", title: "Lease liability schedule" },
     { code: "IFRS 9", title: "Expected credit loss illustration" },
     { code: "IFRS 17", title: "Contractual service margin roll-forward" },
+    { code: "Loans & Deposits", title: "Lending · deposits · leases · unit trusts" },
   ];
   const enterpriseInquiryHref = `mailto:sales@ifrsmetrics.com?subject=${encodeURIComponent("Enterprise coverage inquiry")}&body=${encodeURIComponent(
     "Hello IFRS Metrics team,\n\nI would like to discuss Enterprise coverage.\n\nContact name:\nOrganization:\nWork email:\nStandards or reports needed (IFRS 16, IFRS 9, IFRS 17):\nWhat problem or reporting workflow do you need help with?\nApproximate number of users:\nDesired timeline:\n\nThank you.",
@@ -217,7 +224,16 @@ export function IfrsMetrics() {
         .ifrs-page h1 { font-size: clamp(42px, 5.5vw, 67px); line-height: .99; letter-spacing: -.065em; max-width: 600px; margin: 0 0 21px; font-weight: 700; }
         .ifrs-page h1 .accent { color: var(--teal); }
         .ifrs-page .hero-copy { color: var(--muted); font-size: 16px; max-width: 440px; margin: 0 0 26px; line-height: 1.7; }
-        .ifrs-page .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .ifrs-page .actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+        .ifrs-page .lending-art {
+          margin: 0 0 12px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #edf3f6;
+        }
+        .ifrs-page .lending-art img {
+          display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+        }
+        .ifrs-page .lending-cta {
+          display: inline-flex; align-items: center; gap: 8px; margin-top: 4px;
+        }
         .ifrs-page .button {
           display: inline-flex;
           align-items: center;
@@ -431,10 +447,9 @@ export function IfrsMetrics() {
             <Link href="/workspace/app" className="nav-cta">Workspace Lab</Link>
             <a href="#roadmap">Standards</a>
             <a href="#pricing" className="pricing-link">Pricing</a>
-            <a href="#approach">Approach</a>
-            <Link href="/loans-deposits" className="nav-cta">IFRS Metrics Loans and Deposits</Link>
+            <Link href="/loans-deposits" className="nav-cta">Loans & Deposits</Link>
             <Link
-              href="/loans-deposits?cart=open"
+              href="/loans-deposits/marketplace?cart=open"
               className="profile-link"
               title="Shared cart"
               aria-label={`Open cart, ${cartItems.length} items`}
@@ -454,9 +469,6 @@ export function IfrsMetrics() {
             <p className="hero-copy">IFRS Metrics is being built to help finance teams turn source data and controlled assumptions into clear IFRS schedules and reports.</p>
             <div className="actions">
               <Link className="button" href="/workspace/app">Open Workspace Lab <Arrow /></Link>
-              <Link className="text-link" href="/loans-deposits">IFRS Metrics Loans and Deposits <Arrow /></Link>
-              <a className="text-link" href="#schedule">See an illustrative schedule <Arrow /></a>
-              <a className="text-link" href="#interest">Register interest <Arrow /></a>
             </div>
             <div className="microproof"><span>↳</span> Designed around visible inputs, clear workings and review.</div>
           </div>
@@ -576,7 +588,7 @@ export function IfrsMetrics() {
                   </table>
                 </div>
                 <p className="table-note"><strong>Illustrative only.</strong> Simplified exposure × PD × LGD examples; staging, discounting, forward-looking scenarios, and portfolio-specific assumptions are not included.</p>
-              </> : <>
+              </> : sampleIndex === 2 ? <>
                 <div className="rate-row"><span className="rate-chip">Contract group</span><span>Illustrative CSM movement · amount units</span></div>
                 <div className="table-wrap">
                   <table>
@@ -590,6 +602,25 @@ export function IfrsMetrics() {
                   </table>
                 </div>
                 <p className="table-note"><strong>Illustrative only.</strong> This simplified movement omits risk adjustment, finance effects, experience adjustments, and other measurement details.</p>
+              </> : <>
+                <div className="rate-row">
+                  <span className="rate-chip">Loans & Deposits</span>
+                  <span>Lending · deposits · leases · unit trusts</span>
+                </div>
+                <figure className="lending-art">
+                  <img
+                    src={`${import.meta.env.BASE_URL}loans-deposits-spiral.jpg`}
+                    alt="Abstract spiral illustration for Loans and Deposits"
+                    width={960}
+                    height={720}
+                  />
+                </figure>
+                <Link className="button lending-cta" href="/loans-deposits">
+                  Open Loans & Deposits <Arrow />
+                </Link>
+                <p className="table-note">
+                  Explore the Loans & Deposits product overview and service catalog.
+                </p>
               </>}
             </article>
             <div className="carousel-hint">Swipe to explore samples, or use the previous and next buttons.</div>
@@ -632,25 +663,25 @@ export function IfrsMetrics() {
             <table className="pricing-table">
               <thead><tr><th>Option</th><th>Reports / service</th><th>Billing cycle</th><th>Price</th><th className="select-cell">Select</th></tr></thead>
               <tbody>
-                <tr className={selectedPlan === "fortnight" ? "selected" : ""}>
+                <tr className={pricingOption === "fortnight" ? "selected" : ""}>
                   <td>All-report subscription</td><td>IFRS 16 · IFRS 9 · IFRS 17</td><td>Renews every fortnight</td><td className="price">$3.99</td>
-                  <td className="select-cell"><input className="pricing-control" type="radio" name="ifrs-plan" aria-label="Select fortnightly subscription" checked={selectedPlan === "fortnight"} onChange={() => setSelectedPlan("fortnight")} /></td>
+                  <td className="select-cell"><input className="pricing-control" type="radio" name="ifrs-pricing" aria-label="Select fortnightly subscription" checked={pricingOption === "fortnight"} onChange={() => setPricingOption("fortnight")} /></td>
                 </tr>
-                <tr className={selectedPlan === "monthly" ? "selected" : ""}>
+                <tr className={pricingOption === "monthly" ? "selected" : ""}>
                   <td>All-report subscription</td><td>IFRS 16 · IFRS 9 · IFRS 17</td><td>Renews monthly</td><td className="price">$6.99</td>
-                  <td className="select-cell"><input className="pricing-control" type="radio" name="ifrs-plan" aria-label="Select monthly subscription" checked={selectedPlan === "monthly"} onChange={() => setSelectedPlan("monthly")} /></td>
+                  <td className="select-cell"><input className="pricing-control" type="radio" name="ifrs-pricing" aria-label="Select monthly subscription" checked={pricingOption === "monthly"} onChange={() => setPricingOption("monthly")} /></td>
                 </tr>
-                <tr className={lightSupportSelected ? "selected" : ""}>
+                <tr className={pricingOption === "light" ? "selected" : ""}>
                   <td>Light support</td><td>Help with specific requested tasks</td>
                   <td><select className="pricing-cycle" aria-label="Light support billing cycle" value={lightSupportCadence} onChange={(event) => setLightSupportCadence(event.target.value as "fortnight" | "monthly")}><option value="fortnight">Per fortnight</option><option value="monthly">Monthly</option></select></td>
                   <td className="price">${lightSupportCadence === "fortnight" ? "80.00 / fortnight" : "120.00 / month"} <span className="pricing-tax">(tax excluded)</span></td>
-                  <td className="select-cell"><input className="pricing-control" type="checkbox" aria-label="Add light support" checked={lightSupportSelected} onChange={(event) => setLightSupportSelected(event.target.checked)} /></td>
+                  <td className="select-cell"><input className="pricing-control" type="radio" name="ifrs-pricing" aria-label="Select light support" checked={pricingOption === "light"} onChange={() => setPricingOption("light")} /></td>
                 </tr>
-                <tr className={dedicatedSupportSelected ? "selected" : ""}>
+                <tr className={pricingOption === "dedicated" ? "selected" : ""}>
                   <td>Dedicated technical support</td><td>Dedicated technical assistance</td>
                   <td><select className="pricing-cycle" aria-label="Dedicated technical support billing cycle" value={dedicatedSupportCadence} onChange={(event) => setDedicatedSupportCadence(event.target.value as "fortnight" | "monthly")}><option value="fortnight">Per fortnight</option><option value="monthly">Monthly</option></select></td>
                   <td className="price">${dedicatedSupportCadence === "fortnight" ? "180.00 / fortnight" : "300.00 / month"} <span className="pricing-tax">(tax excluded)</span></td>
-                  <td className="select-cell"><input className="pricing-control" type="checkbox" aria-label="Add dedicated technical support" checked={dedicatedSupportSelected} onChange={(event) => setDedicatedSupportSelected(event.target.checked)} /></td>
+                  <td className="select-cell"><input className="pricing-control" type="radio" name="ifrs-pricing" aria-label="Select dedicated technical support" checked={pricingOption === "dedicated"} onChange={() => setPricingOption("dedicated")} /></td>
                 </tr>
                 <tr>
                   <td>Enterprise coverage</td><td>Tailored reporting, onboarding, and support</td><td>Custom</td><td className="price">Contact for pricing</td>
@@ -661,11 +692,10 @@ export function IfrsMetrics() {
           </div>
           <div className="pricing-summary" aria-live="polite">
             <strong>Your selection</strong>
-            <span>{selectedPlan === "fortnight" ? "All reports · $3.99 per fortnight" : "All reports · $6.99 per month"}</span>
-            {lightSupportSelected && <span>Light support · ${lightSupportCadence === "fortnight" ? "80.00 per fortnight" : "120.00 per month"} (tax excluded)</span>}
-            {dedicatedSupportSelected && <span>Dedicated technical support · ${dedicatedSupportCadence === "fortnight" ? "180.00 per fortnight" : "300.00 per month"} (tax excluded)</span>}
-            {fortnightTotal > 0 && <span className="pricing-total">Fortnightly charges: ${formatAmount(fortnightTotal)}</span>}
-            {monthlyTotal > 0 && <span className="pricing-total">Monthly charges: ${formatAmount(monthlyTotal)}</span>}
+            <span>{selectedTotal.label}</span>
+            <span className="pricing-total">
+              Total: ${formatAmount(selectedTotal.amount)} / {selectedTotal.cadence === "fortnight" ? "fortnight" : "month"}
+            </span>
           </div>
           <div className="pricing-checkout">
             <button
@@ -673,9 +703,9 @@ export function IfrsMetrics() {
               type="button"
               onClick={() => {
                 upsertLabSelection({
-                  plan: selectedPlan,
-                  lightSupport: lightSupportSelected ? lightSupportCadence : null,
-                  dedicatedSupport: dedicatedSupportSelected ? dedicatedSupportCadence : null,
+                  plan: pricingOption === "fortnight" || pricingOption === "monthly" ? pricingOption : null,
+                  lightSupport: pricingOption === "light" ? lightSupportCadence : null,
+                  dedicatedSupport: pricingOption === "dedicated" ? dedicatedSupportCadence : null,
                 });
                 setCheckoutReturnPath(LAB_RETURN_PATH);
                 setLocation("/checkout");
@@ -685,10 +715,10 @@ export function IfrsMetrics() {
               Add to cart & checkout <Arrow />
             </button>
             <p className="pricing-checkout-note" id="checkout-routing-note">
-              Adds these Lab items to the shared cart with Loans & Deposits, then opens checkout review.
+              Adds this Lab option to the shared cart with Loans & Deposits, then opens checkout review.
             </p>
           </div>
-          <p className="pricing-note">Support options are optional add-ons. Support prices exclude tax. Billing cycles are shown separately. Selecting options does not start a subscription or take payment.</p>
+          <p className="pricing-note">Choose one pricing option. Support prices exclude tax. Selecting an option does not start a subscription or take payment.</p>
         </div>
       </section>
 

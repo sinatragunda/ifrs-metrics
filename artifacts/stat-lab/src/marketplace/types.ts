@@ -34,7 +34,8 @@ export type CartItem = {
 };
 
 export type LabCheckoutSelection = {
-  plan: "fortnight" | "monthly";
+  /** Exactly one of plan / lightSupport / dedicatedSupport should be set. */
+  plan: "fortnight" | "monthly" | null;
   lightSupport: "fortnight" | "monthly" | null;
   dedicatedSupport: "fortnight" | "monthly" | null;
 };

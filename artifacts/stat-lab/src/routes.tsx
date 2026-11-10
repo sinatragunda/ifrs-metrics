@@ -2,6 +2,7 @@ import { ClerkProvider } from '@clerk/react';
 import { Route, Switch, useLocation } from 'wouter';
 import NotFound from '@/pages/not-found';
 import IfrsMetrics from '@/pages/IfrsMetrics';
+import LoansDepositsLanding from '@/pages/LoansDepositsLanding';
 import { MarketplacePage } from '@/marketplace';
 import { ClerkSessionBridge, ClerkSetupPage, HomeRedirect, SignInPage, SignUpPage } from '@/auth/AuthPages';
 import { basePath, clerkAppearance, clerkProxyUrl, clerkPubKey } from '@/auth/clerk-config';
@@ -16,7 +17,8 @@ export function LocalRoutes() {
       <Switch>
         <Route path="/" component={IfrsMetrics}/>
         <Route path="/ifrs" component={IfrsMetrics}/>
-        <Route path="/loans-deposits" component={MarketplacePage}/>
+        <Route path="/loans-deposits/marketplace" component={MarketplacePage}/>
+        <Route path="/loans-deposits" component={LoansDepositsLanding}/>
         <Route path="/workspace" component={WorkspaceEntry}/>
         <Route path="/workspace/app" component={WorkspaceAppRoute}/>
         <Route path="/account/billing" component={ClerkSetupPage}/>
@@ -47,7 +49,8 @@ export function ClerkRoutes() {
       <Switch>
         <Route path="/" component={HomeRedirect}/>
         <Route path="/ifrs" component={IfrsMetrics}/>
-        <Route path="/loans-deposits" component={MarketplacePage}/>
+        <Route path="/loans-deposits/marketplace" component={MarketplacePage}/>
+        <Route path="/loans-deposits" component={LoansDepositsLanding}/>
         <Route path="/workspace" component={WorkspaceEntry}/>
         <Route path="/workspace/app" component={WorkspaceAppRoute}/>
         <Route path="/account/billing" component={AccountBillingRoute}/>

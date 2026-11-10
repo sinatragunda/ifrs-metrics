@@ -16,15 +16,15 @@ export function MarketplaceNav({
     <header className="sticky top-0 z-30 border-b border-[#d2dfe3] bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
         <Link href="/loans-deposits" className="flex shrink-0 items-center gap-2.5">
-          <span className="grid h-8 w-8 place-items-center rounded-[7px_7px_7px_2px] bg-[#147b69] text-[11px] font-bold tracking-tight text-[#f4faf8]">
+          <span className="grid h-8 w-8 place-items-center rounded-[7px_7px_7px_2px] bg-[#0e786b] text-[11px] font-bold tracking-tight text-[#f4faf8]">
             IM
           </span>
           <div className="leading-tight">
             <div className="text-sm font-bold tracking-[-0.03em] text-[#142a3d]">
-              IFRS <span className="text-[#147b69]">Metrics</span>
+              IFRS <span className="text-[#0e786b]">Metrics</span>
             </div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#64748b]">
-              Loans & Deposits
+              Service catalog
             </div>
           </div>
         </Link>
@@ -42,15 +42,15 @@ export function MarketplaceNav({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <Link
-            href="/ifrs"
-            className="hidden rounded-md px-2.5 py-1.5 text-xs font-semibold text-[#52687a] hover:bg-[#f4f8f8] hover:text-[#147b69] sm:inline"
-          >
+          <Link href="/loans-deposits" className="btn-ghost hidden !py-1.5 sm:inline-flex">
+            Overview
+          </Link>
+          <Link href="/ifrs" className="btn-ghost hidden !py-1.5 sm:inline-flex">
             IFRS Lab
           </Link>
           <Link
             href="/sign-in"
-            className="grid h-9 w-9 place-items-center rounded-full border border-[#d2dfe3] text-[#40596b] hover:border-[#147b69] hover:bg-[#dcece8]"
+            className="btn-icon"
             title="Account"
             aria-label="Account"
           >
@@ -59,14 +59,12 @@ export function MarketplaceNav({
           <button
             type="button"
             onClick={onOpenCart}
-            className="relative grid h-9 place-items-center rounded-md border border-[#d2dfe3] bg-[#142a3d] px-3 text-white hover:bg-[#1c3a52]"
+            className="btn-primary relative"
             aria-label={`Cart ${cartCount}`}
           >
-            <span className="flex items-center gap-1.5 text-xs font-semibold">
-              <ShoppingCart className="h-4 w-4" />
-              <span className="hidden sm:inline">Cart</span>
-              <span className="rounded bg-white/15 px-1.5 py-0.5 tabular-nums">{cartCount}</span>
-            </span>
+            <ShoppingCart className="h-4 w-4" />
+            <span className="hidden sm:inline">Cart</span>
+            <span className="rounded bg-white/15 px-1.5 py-0.5 tabular-nums">{cartCount}</span>
           </button>
         </div>
       </div>

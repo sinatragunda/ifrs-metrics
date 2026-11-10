@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, ArrowDownToLine, ArrowRight, BarChart3, Check, ChevronDown, ChevronRight, CircleHelp, Database, FileSpreadsheet, Filter, FlaskConical, FolderOpen, FolderPlus, Layers3, MessageSquareText, PanelLeftClose, PanelLeftOpen, Search, Sparkles, Table2, Trash2, Upload, UserRound, X } from 'lucide-react';
+import { Activity, ArrowDownToLine, ArrowRight, BarChart3, Check, ChevronDown, ChevronRight, CircleHelp, Database, FileSpreadsheet, Filter, FlaskConical, Folder, FolderOpen, FolderPlus, Layers3, MessageSquareText, PanelLeftClose, PanelLeftOpen, Search, Sparkles, Table2, Trash2, Upload, UserRound, X } from 'lucide-react';
 import { Link } from 'wouter';
 import * as XLSX from 'xlsx';
 import { useSessionUser } from '@/auth/session';
@@ -40,6 +40,9 @@ export function Workspace() {
   const [projectNameInput, setProjectNameInput] = useState('');
   const [projectStandardInput, setProjectStandardInput] = useState<ProjectStandard | ''>('');
   const [pendingImport, setPendingImport] = useState<{ dataset: Dataset; targets: string[]; size: number } | null>(null);
+  const [expandedProjects, setExpandedProjects] = useState<string[]>(() =>
+    projectStore.activeProjectId ? [projectStore.activeProjectId] : [],
+  );
   const fileRef = useRef<HTMLInputElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
 
@@ -263,46 +266,128 @@ export function Workspace() {
   const workspaceProjects = projectStore.projects.filter((project) => project.workspaceId === projectStore.activeWorkspaceId);
   const activeProject = workspaceProjects.find((project) => project.id === projectStore.activeProjectId);
 
+  const toggleProjectExpanded = (projectId: string) => {
+    setExpandedProjects((current) =>
+      current.includes(projectId) ? current.filter((id) => id !== projectId) : [...current, projectId],
+    );
+  };
+
   return <div className="app-shell flex">
-    <aside className={`sidebar hidden shrink-0 flex-col min-h-[100dvh] py-5 transition-all duration-200 md:flex ${sidebarCollapsed ? 'md:w-[76px] px-2' : 'md:w-[236px] px-4'}`}>
-      <div className={`flex items-center pb-8 ${sidebarCollapsed ? 'flex-col gap-3' : 'gap-3 px-2'}`}>
-        <div className={`flex min-w-0 items-center ${sidebarCollapsed ? 'justify-center' : 'flex-1 gap-3'}`}>
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#147b69] text-[#f4faf8]"><Activity size={20}/></div>
-          {!sidebarCollapsed && <div className="min-w-0"><div className="display text-[19px] font-extrabold tracking-tight">IFRS Lab</div><div className="text-[10px] uppercase tracking-[.18em] text-[#94a3b8]">Research workspace</div></div>}
+    <aside className={`sidebar hidden shrink-0 flex-col min-h-[100dvh] py-4 transition-all duration-200 md:flex ${sidebarCollapsed ? 'md:w-[76px] px-2' : 'md:w-[252px] px-3'}`}>
+      <div className={`flex items-center pb-4 ${sidebarCollapsed ? 'flex-col gap-3' : 'gap-2 px-1'}`}>
+        <div className={`flex min-w-0 items-center ${sidebarCollapsed ? 'justify-center' : 'flex-1 gap-2.5'}`}>
+          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] bg-[#0078d4] text-white shadow-sm"><Activity size={16}/></div>
+          {!sidebarCollapsed && <div className="min-w-0"><div className="truncate text-[13px] font-semibold tracking-tight text-[#1f2328]">IFRS Lab</div><div className="text-[10px] text-[#605e5c]">File explorer</div></div>}
         </div>
-        <button data-testid="button-toggle-sidebar" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#2a4458] bg-[#142a3d] text-[#eef4f6] hover:bg-[#1c3a52]" title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed}>
-          {sidebarCollapsed ? <PanelLeftOpen size={16}/> : <PanelLeftClose size={16}/>}
+        <button data-testid="button-toggle-sidebar" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} className="grid h-7 w-7 shrink-0 place-items-center rounded-[4px] border border-[#d8dde4] bg-white text-[#605e5c] hover:bg-[#edebe9]" title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed}>
+          {sidebarCollapsed ? <PanelLeftOpen size={14}/> : <PanelLeftClose size={14}/>}
         </button>
       </div>
-      {!sidebarCollapsed && <div className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[.16em] text-[#94a3b8]">Workspace</div>}
-      {!sidebarCollapsed && <select aria-label="Select workspace" value={projectStore.activeWorkspaceId} onChange={(event) => {
-        const nextWorkspaceId = event.target.value;
-        setProjectStore((old) => {
-          const nextProject = old.projects.find((project) => project.workspaceId === nextWorkspaceId);
-          return { ...old, activeWorkspaceId: nextWorkspaceId, activeProjectId: nextProject?.id ?? null, activeFileId: null };
-        });
-      }} className="mb-3 w-full rounded-lg border border-[#2a4458] bg-[#142a3d] px-3 py-2 text-xs font-semibold text-[#eef4f6]">
-        {projectStore.workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}{workspace.isDefault ? ' · Default' : ''}</option>)}
-      </select>}
-      <button title="Projects & files" aria-label="Projects and files" onClick={() => setProjectManagerOpen(true)} className={`mb-3 flex items-center rounded-lg border border-[#2a4458] py-2.5 text-xs font-semibold text-[#eef4f6] hover:bg-[#1c3a52] ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2 px-3 text-left'}`}><FolderPlus size={15}/>{!sidebarCollapsed && 'Projects & files'}</button>
-      {!sidebarCollapsed && activeProject && <div className="mb-4 rounded-lg bg-[#1c3a52] p-3">
-        <div className="flex items-center gap-2 text-xs font-semibold text-white"><FolderOpen size={14} className="text-[#9bbeb7]"/><span className="truncate">{activeProject.name}</span></div>
-        <div className="mt-1 pl-6 text-[9px] text-[#94a3b8]">{projectStandardLabels[activeProject.standard]}</div>
-        <div className="mt-3 space-y-1">
-          {activeProject.files.map((file) => <button key={file.id} onClick={() => openProjectFile(activeProject, file)} className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[10px] ${projectStore.activeFileId === file.id ? 'bg-[#1c3a52] text-white' : 'text-[#cbd8df] hover:bg-[#1c3a52]'}`}><FileSpreadsheet size={12}/><span className="truncate">{file.name}</span></button>)}
-          {!activeProject.files.length && <p className="px-2 text-[10px] text-[#94a3b8]">No files yet. Import one to begin.</p>}
+
+      {!sidebarCollapsed && <>
+        <div className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[.08em] text-[#605e5c]">Navigation</div>
+        {!sidebarCollapsed && <select aria-label="Select workspace" value={projectStore.activeWorkspaceId} onChange={(event) => {
+          const nextWorkspaceId = event.target.value;
+          setProjectStore((old) => {
+            const nextProject = old.projects.find((project) => project.workspaceId === nextWorkspaceId);
+            return { ...old, activeWorkspaceId: nextWorkspaceId, activeProjectId: nextProject?.id ?? null, activeFileId: null };
+          });
+          if (nextWorkspaceId) {
+            const nextProject = projectStore.projects.find((project) => project.workspaceId === nextWorkspaceId);
+            if (nextProject) setExpandedProjects((current) => current.includes(nextProject.id) ? current : [...current, nextProject.id]);
+          }
+        }} className="mb-2 w-full rounded-[4px] border border-[#d8dde4] bg-white px-2.5 py-1.5 text-xs font-medium text-[#1f2328]">
+          {projectStore.workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}{workspace.isDefault ? ' · Default' : ''}</option>)}
+        </select>}
+
+        <div className="mb-2 rounded-[4px] border border-[#d8dde4] bg-white">
+          <div className="flex items-center gap-1 border-b border-[#edebe9] px-2 py-1.5">
+            <FolderOpen size={14} className="ms-folder-open shrink-0" fill="currentColor" />
+            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-[#1f2328]">
+              {projectStore.workspaces.find((workspace) => workspace.id === projectStore.activeWorkspaceId)?.name ?? 'Workspace'}
+            </span>
+            <button type="button" title="Projects & files" aria-label="Projects and files" onClick={() => setProjectManagerOpen(true)} className="grid h-6 w-6 place-items-center rounded-[3px] text-[#0078d4] hover:bg-[#cce4f7]">
+              <FolderPlus size={13}/>
+            </button>
+          </div>
+
+          <div className="max-h-[42vh] overflow-y-auto py-1">
+            {!workspaceProjects.length && <p className="px-3 py-2 text-[10px] text-[#605e5c]">No projects yet. Create one to start.</p>}
+            {workspaceProjects.map((project) => {
+              const expanded = expandedProjects.includes(project.id);
+              const isActiveProject = project.id === projectStore.activeProjectId;
+              return (
+                <div key={project.id} className="px-1">
+                  <div className={`flex items-center rounded-[3px] ${isActiveProject ? 'bg-[#eef6fc]' : 'hover:bg-[#edebe9]'}`}>
+                    <button
+                      type="button"
+                      aria-label={expanded ? `Collapse ${project.name}` : `Expand ${project.name}`}
+                      onClick={() => toggleProjectExpanded(project.id)}
+                      className="grid h-7 w-6 shrink-0 place-items-center text-[#605e5c]"
+                    >
+                      {expanded ? <ChevronDown size={12}/> : <ChevronRight size={12}/>}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        selectProject(project);
+                        setExpandedProjects((current) => current.includes(project.id) ? current : [...current, project.id]);
+                      }}
+                      className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-2 text-left"
+                    >
+                      {expanded
+                        ? <FolderOpen size={14} className="ms-folder-open shrink-0" fill="currentColor" />
+                        : <Folder size={14} className="ms-folder shrink-0" fill="currentColor" />}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[11px] font-medium text-[#1f2328]">{project.name}</span>
+                        <span className="block truncate text-[9px] text-[#605e5c]">{projectStandardLabels[project.standard]}</span>
+                      </span>
+                    </button>
+                  </div>
+                  {expanded && (
+                    <div className="sidebar-tree-line ml-3 mb-1 space-y-0.5 pl-3">
+                      {!project.files.length && <p className="px-1 py-1 text-[10px] text-[#605e5c]">Empty folder</p>}
+                      {project.files.map((file) => {
+                        const selected = projectStore.activeFileId === file.id && isActiveProject;
+                        return (
+                          <button
+                            key={file.id}
+                            type="button"
+                            onClick={() => openProjectFile(project, file)}
+                            className={`flex w-full items-center gap-1.5 rounded-[3px] px-1.5 py-1 text-left ${selected ? 'bg-[#cce4f7] text-[#003966]' : 'text-[#323130] hover:bg-[#edebe9]'}`}
+                          >
+                            <FileSpreadsheet size={12} className={selected ? 'shrink-0 text-[#0078d4]' : 'shrink-0 text-[#107c10]'}/>
+                            <span className="min-w-0 flex-1 truncate text-[10px] font-medium">{file.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
+      </>}
+
+      {sidebarCollapsed && (
+        <button title="Projects & files" aria-label="Projects and files" onClick={() => setProjectManagerOpen(true)} className="mb-2 grid h-9 w-full place-items-center rounded-[4px] border border-[#d8dde4] bg-white text-[#e8b339] hover:bg-[#edebe9]">
+          <FolderPlus size={16}/>
+        </button>
+      )}
+
+      <button title="Data & explore" aria-label="Data and explore" data-testid="nav-data" onClick={() => setActiveTab('data')} className={`flex items-center rounded-[4px] py-2 text-[12px] transition ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-2.5'} ${activeTab === 'data' ? 'bg-[#cce4f7] font-semibold text-[#003966]' : 'text-[#323130] hover:bg-[#edebe9]'}`}><Table2 size={15} className={activeTab === 'data' ? 'text-[#0078d4]' : 'text-[#605e5c]'}/>{!sidebarCollapsed && 'Data & explore'}</button>
+      <button title="Results" aria-label={`Results, ${results.length}`} data-testid="nav-results" onClick={() => setActiveTab('results')} className={`mt-0.5 flex items-center rounded-[4px] py-2 text-[12px] transition ${sidebarCollapsed ? 'justify-center px-0' : 'justify-between px-2.5'} ${activeTab === 'results' ? 'bg-[#cce4f7] font-semibold text-[#003966]' : 'text-[#323130] hover:bg-[#edebe9]'}`}><span className={`flex items-center ${sidebarCollapsed ? '' : 'gap-2.5'}`}><BarChart3 size={15} className={activeTab === 'results' ? 'text-[#0078d4]' : 'text-[#605e5c]'}/>{!sidebarCollapsed && 'Results'}</span>{!sidebarCollapsed && <span className="mono text-[10px] text-[#605e5c]">{results.length}</span>}</button>
+
+      {!sidebarCollapsed && <div className="mx-1 mt-6 border-t border-[#d8dde4] pt-4">
+        <div className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[.08em] text-[#605e5c]">Open item</div>
+        <div className="flex items-start gap-2 rounded-[4px] border border-[#d8dde4] bg-white p-2.5"><Database size={14} className="mt-0.5 shrink-0 text-[#0078d4]"/><div className="min-w-0"><div className="truncate text-[11px] font-semibold text-[#1f2328]">{dataset.name}</div><div className="mt-0.5 text-[10px] text-[#605e5c]">{dataset.rows.length} rows · {dataset.columns.length} fields</div></div></div>
+        <button data-testid="button-reset-demo" onClick={reset} className="mt-2 flex w-full items-center gap-2 rounded-[4px] px-2.5 py-1.5 text-[11px] text-[#323130] hover:bg-[#edebe9]"><Activity size={13} className="text-[#605e5c]"/> Reset to demo</button>
       </div>}
-      <button title="Data & explore" aria-label="Data and explore" data-testid="nav-data" onClick={() => setActiveTab('data')} className={`flex items-center rounded-lg py-2.5 text-sm transition ${sidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} ${activeTab === 'data' ? 'bg-[#1c3a52] text-white' : 'text-[#cbd8df] hover:bg-[#1c3a52]'}`}><Table2 size={17}/>{!sidebarCollapsed && 'Data & explore'}</button>
-      <button title="Results" aria-label={`Results, ${results.length}`} data-testid="nav-results" onClick={() => setActiveTab('results')} className={`mt-1 flex items-center rounded-lg py-2.5 text-sm transition ${sidebarCollapsed ? 'justify-center px-0' : 'justify-between px-3'} ${activeTab === 'results' ? 'bg-[#1c3a52] text-white' : 'text-[#cbd8df] hover:bg-[#1c3a52]'}`}><span className={`flex items-center ${sidebarCollapsed ? '' : 'gap-3'}`}><BarChart3 size={17}/>{!sidebarCollapsed && 'Results'}</span>{!sidebarCollapsed && <span className="mono text-[10px] text-[#94a3b8]">{results.length}</span>}</button>
-      {!sidebarCollapsed && <div className="mx-2 mt-8 border-t border-[#2a4458] pt-5">
-        <div className="mb-3 px-1 text-[10px] font-bold uppercase tracking-[.16em] text-[#94a3b8]">Current dataset</div>
-        <div className="flex items-start gap-2 rounded-lg bg-[#1c3a52] p-3"><Database size={15} className="mt-0.5 shrink-0 text-[#9bbeb7]"/><div className="min-w-0"><div className="truncate text-xs font-semibold">{dataset.name}</div><div className="mt-1 text-[10px] text-[#94a3b8]">{dataset.rows.length} rows · {dataset.columns.length} fields</div></div></div>
-        <button data-testid="button-reset-demo" onClick={reset} className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-[#cbd8df] hover:bg-[#1c3a52]"><Activity size={14}/> Reset to demo</button>
-      </div>}
-        <div className={`mt-auto rounded-xl border border-[#2a4458] bg-[#142a3d] ${sidebarCollapsed ? 'mx-auto p-2' : 'p-3.5'}`} title={sidebarCollapsed ? 'Your data stays in this browser' : undefined}>
-        <div className={`flex items-center text-xs font-semibold text-[#eef4f6] ${sidebarCollapsed ? 'justify-center' : 'gap-2'}`}><Sparkles size={14} className="text-[#9bbeb7]"/>{!sidebarCollapsed && 'Local by design'}</div>
-        {!sidebarCollapsed && <p className="mt-2 text-[11px] leading-relaxed text-[#94a3b8]">Your data stays in this browser. Nothing is uploaded to a server.</p>}
+
+      <div className={`mt-auto rounded-[4px] border border-[#d8dde4] bg-white ${sidebarCollapsed ? 'mx-auto p-2' : 'p-2.5'}`} title={sidebarCollapsed ? 'Your data stays in this browser' : undefined}>
+        <div className={`flex items-center text-[11px] font-semibold text-[#1f2328] ${sidebarCollapsed ? 'justify-center' : 'gap-2'}`}><Sparkles size={13} className="text-[#0078d4]"/>{!sidebarCollapsed && 'Local by design'}</div>
+        {!sidebarCollapsed && <p className="mt-1.5 text-[10px] leading-relaxed text-[#605e5c]">Your data stays in this browser. Nothing is uploaded to a server.</p>}
       </div>
     </aside>
     <main className="min-w-0 flex-1">
@@ -321,12 +406,11 @@ export function Workspace() {
           </div>
           <div className="flex items-center gap-2">
             <span className="hidden items-center gap-1.5 rounded-full border border-[#9bbeb7] bg-[#dcece8] px-2.5 py-1 text-[10px] font-semibold text-[#095e55] sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-[#147b69]"/> Browser session</span>
-             <Link href="/ifrs" title="Open IFRS Lab" aria-label="Open IFRS Lab" className="flex items-center gap-2 rounded-lg border border-[#d2dfe3] bg-[#ffffff] px-3 py-2 text-xs font-semibold text-[#40596b] hover:border-[#147b69]"><FlaskConical size={14}/><span className="hidden sm:inline">IFRS Lab</span></Link>
-            <button onClick={() => setProjectManagerOpen(true)} className="flex items-center gap-2 rounded-lg border border-[#d2dfe3] bg-[#ffffff] px-3 py-2 text-xs font-semibold text-[#40596b] hover:border-[#147b69]"><FolderOpen size={14}/><span className="hidden sm:inline">Projects</span></button>
+            <button onClick={() => setProjectManagerOpen(true)} className="btn-secondary"><FolderOpen size={14}/><span className="hidden sm:inline">Projects</span></button>
             <input ref={fileRef} type="file" accept=".csv,.tsv,.xlsx,.xls,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" data-testid="input-file" onChange={(e) => void importFile(e.target.files?.[0])}/>
-            <button data-testid="button-import" onClick={() => activeProject ? fileRef.current?.click() : setProjectManagerOpen(true)} disabled={uploadBusy} className="flex items-center gap-2 rounded-lg border border-[#d2dfe3] bg-[#ffffff] px-3 py-2 text-xs font-semibold text-[#40596b] hover:border-[#147b69] disabled:opacity-60"><Upload size={14}/><span className="hidden sm:inline">{uploadBusy ? 'Reading…' : 'Import data'}</span></button>
-            <button data-testid="button-export" onClick={exportCsv} className="flex items-center gap-2 rounded-lg bg-[#147b69] px-3 py-2 text-xs font-semibold text-white hover:bg-[#0f6556]"><ArrowDownToLine size={14}/><span className="hidden sm:inline">Export CSV</span></button>
-            <Link href={user ? "/account" : "/sign-in"} title={user ? "Your account" : "Sign in"} aria-label={user ? "Your account" : "Sign in"} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#d2dfe3] bg-[#ffffff] text-[#40596b]"><UserRound size={16}/></Link>
+            <button data-testid="button-import" onClick={() => activeProject ? fileRef.current?.click() : setProjectManagerOpen(true)} disabled={uploadBusy} className="btn-secondary disabled:opacity-60"><Upload size={14}/><span className="hidden sm:inline">{uploadBusy ? 'Reading…' : 'Import data'}</span></button>
+            <button data-testid="button-export" onClick={exportCsv} className="btn-primary"><ArrowDownToLine size={14}/><span className="hidden sm:inline">Export CSV</span></button>
+            <Link href={user ? "/account" : "/sign-in"} title={user ? "Your account" : "Sign in"} aria-label={user ? "Your account" : "Sign in"} className="btn-icon"><UserRound size={16}/></Link>
           </div>
         </div>
       </header>
@@ -365,9 +449,9 @@ export function Workspace() {
                   {visibleRows.length ? <table className="w-full min-w-[680px] border-collapse text-left">
                     <thead><tr className="bg-[#f4f8f8]">{dataset.columns.map((c) => <th key={c.name} className="border-b border-[#d2dfe3] px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[.1em] text-[#64748b]">{c.name}</th>)}</tr></thead>
                     <tbody>{visibleRows.slice(0, 12).map((row, ri) => <tr data-testid={`row-dataset-${ri}`} key={ri} className="border-b border-[#e7edef] last:border-0 hover:bg-[#f4f8f8]">{dataset.columns.map((c) => <td data-testid={`cell-${ri}-${c.name}`} key={c.name} className={`px-4 py-2.5 text-xs ${c.type === 'number' ? 'mono text-[#40596b]' : 'text-[#40596b]'}`}>{row[c.name] === null ? <span className="text-[#94a3b8]">Missing</span> : String(row[c.name])}</td>)}</tr>)}</tbody>
-                  </table> : <div data-testid="empty-filter" className="p-10 text-center"><div className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-[#eef4f6] text-[#64748b]"><Filter size={18}/></div><p className="mt-3 text-sm font-semibold text-[#142a3d]">No rows match this filter</p><button data-testid="button-clear-filter" onClick={() => setAppliedFilter(null)} className="mt-2 text-xs font-semibold text-[#147b69] underline underline-offset-2">Clear filter</button></div>}
+                  </table> : <div data-testid="empty-filter" className="p-10 text-center"><div className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-[#eef4f6] text-[#64748b]"><Filter size={18}/></div><p className="mt-3 text-sm font-semibold text-[#142a3d]">No rows match this filter</p><button data-testid="button-clear-filter" onClick={() => setAppliedFilter(null)} className="btn-ghost mt-2">Clear filter</button></div>}
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#e7edef] px-5 py-3 text-[10px] text-[#64748b]"><span>Showing {Math.min(12, visibleRows.length)} of {visibleRows.length} rows</span>{appliedFilter && <button data-testid="button-remove-filter" onClick={() => setAppliedFilter(null)} className="flex items-center gap-1 text-[#147b69]"><X size={12}/> Remove filter</button>}</div>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#e7edef] px-5 py-3 text-[10px] text-[#64748b]"><span>Showing {Math.min(12, visibleRows.length)} of {visibleRows.length} rows</span>{appliedFilter && <button data-testid="button-remove-filter" onClick={() => setAppliedFilter(null)} className="btn-ghost !px-2 !py-1"><X size={12}/> Remove filter</button>}</div>
               </section>
 
               <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -377,8 +461,8 @@ export function Workspace() {
                   <select id="numeric-field" data-testid="select-numeric-field" value={numericField} onChange={(e) => setNumericField(e.target.value)} className="w-full rounded-lg border border-[#d2dfe3] bg-[#f8faf9] px-3 py-2.5 text-xs text-[#142a3d]">{numericFields(dataset).map((f) => <option key={f} value={f}>{f}</option>)}</select>
                   {!numericFields(dataset).length && <p className="mt-2 text-xs text-[#922f27]">Import a dataset with numeric fields to run these analyses.</p>}
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button data-testid="button-descriptive" onClick={runDescriptive} disabled={!numericField} className="flex items-center justify-center gap-2 rounded-lg bg-[#147b69] px-3 py-2.5 text-xs font-semibold text-white hover:bg-[#0f6556] disabled:opacity-50"><Activity size={14}/> Describe</button>
-                    <button data-testid="button-histogram" onClick={runHistogram} disabled={!numericField} className="flex items-center justify-center gap-2 rounded-lg border border-[#d2dfe3] bg-[#ffffff] px-3 py-2.5 text-xs font-semibold text-[#40596b] hover:border-[#147b69] disabled:opacity-50"><BarChart3 size={14}/> Histogram</button>
+                    <button data-testid="button-descriptive" onClick={runDescriptive} disabled={!numericField} className="btn-primary w-full disabled:opacity-50"><Activity size={14}/> Describe</button>
+                    <button data-testid="button-histogram" onClick={runHistogram} disabled={!numericField} className="btn-secondary w-full disabled:opacity-50"><BarChart3 size={14}/> Histogram</button>
                   </div>
                 </div>
                 <div className="stat-card p-5">
@@ -386,7 +470,7 @@ export function Workspace() {
                   <label className="mb-1.5 block text-[10px] font-semibold text-[#64748b]" htmlFor="group-field">Group by</label>
                   <select id="group-field" data-testid="select-group-field" value={groupField} onChange={(e) => setGroupField(e.target.value)} className="mb-2 w-full rounded-lg border border-[#d2dfe3] bg-[#f8faf9] px-3 py-2 text-xs text-[#142a3d]">{dataset.columns.filter((c) => c.type !== 'number').map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}</select>
                   <label className="mb-1.5 block text-[10px] font-semibold text-[#64748b]" htmlFor="outcome-field">Measure</label>
-                  <div className="flex gap-2"><select id="outcome-field" data-testid="select-outcome-field" value={outcomeField} onChange={(e) => setOutcomeField(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-[#d2dfe3] bg-[#f8faf9] px-3 py-2 text-xs text-[#142a3d]">{numericFields(dataset).map((f) => <option key={f} value={f}>{f}</option>)}</select><button data-testid="button-ttest" onClick={runTTest} className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#142a3d] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1c3a52]">Run test <ArrowRight size={13}/></button></div>
+                  <div className="flex gap-2"><select id="outcome-field" data-testid="select-outcome-field" value={outcomeField} onChange={(e) => setOutcomeField(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-[#d2dfe3] bg-[#f8faf9] px-3 py-2 text-xs text-[#142a3d]">{numericFields(dataset).map((f) => <option key={f} value={f}>{f}</option>)}</select><button data-testid="button-ttest" onClick={runTTest} className="btn-primary shrink-0">Run test <ArrowRight size={13}/></button></div>
                 </div>
               </section>
               <section className="stat-card p-5">
@@ -395,12 +479,12 @@ export function Workspace() {
                   <select aria-label="Filter field" data-testid="select-filter-field" value={filterField} onChange={(e) => setFilterField(e.target.value)} className="rounded-lg border border-[#d2dfe3] bg-[#f8faf9] px-3 py-2 text-xs text-[#142a3d]">{dataset.columns.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}</select>
                   <select aria-label="Filter operation" data-testid="select-filter-operator" value={filterOp} onChange={(e) => setFilterOp(e.target.value)} className="rounded-lg border border-[#d2dfe3] bg-[#f8faf9] px-3 py-2 text-xs text-[#142a3d]"><option value="equals">equals</option><option value="contains">contains</option><option value="greater">greater than</option><option value="less">less than</option><option value="missing">is missing</option></select>
                   <input aria-label="Filter value" data-testid="input-filter-value" value={filterValue} onChange={(e) => setFilterValue(e.target.value)} placeholder="Value…" className="rounded-lg border border-[#d2dfe3] bg-[#f8faf9] px-3 py-2 text-xs text-[#142a3d] placeholder:text-[#94a3b8]"/>
-                  <button data-testid="button-apply-filter" onClick={applyFilter} className="flex items-center justify-center gap-1.5 rounded-lg border border-[#d2dfe3] bg-[#ffffff] px-3 py-2 text-xs font-semibold text-[#40596b] hover:border-[#147b69]"><Filter size={13}/> Apply</button>
+                  <button data-testid="button-apply-filter" onClick={applyFilter} className="btn-secondary"><Filter size={13}/> Apply</button>
                 </div>
               </section>
             </> : <section className="stat-card min-h-[420px] p-5 appear">
-              <div className="mb-5 flex items-start justify-between"><div><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-[#147b69]"><BarChart3 size={14}/> Notebook</div><h2 className="mt-1 text-lg font-bold text-[#142a3d]">Analysis results</h2><p className="mt-1 text-xs text-[#64748b]">Computed locally from {dataset.name}</p></div><button data-testid="button-clear-results" disabled={!results.length} onClick={() => setSaved((old) => ({ ...old, results:[] }))} className="flex items-center gap-1.5 rounded-lg border border-[#d2dfe3] px-3 py-2 text-xs text-[#64748b] hover:bg-[#f4f8f8] disabled:opacity-40"><Trash2 size={13}/> Clear all</button></div>
-              {!results.length ? <div data-testid="empty-results" className="fine-grid rounded-xl border border-dashed border-[#d2dfe3] p-10 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#dcece8] text-[#147b69]"><BarChart3 size={20}/></div><h3 className="mt-4 text-sm font-bold text-[#142a3d]">Your results will live here</h3><p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-[#64748b]">Run a summary, histogram, or t-test to create an auditable snapshot from the current dataset.</p><button data-testid="button-first-summary" onClick={() => { setActiveTab('data'); runDescriptive(); }} className="mt-4 rounded-lg bg-[#147b69] px-3 py-2 text-xs font-semibold text-white">Run a summary</button></div> :
+              <div className="mb-5 flex items-start justify-between"><div><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-[#147b69]"><BarChart3 size={14}/> Notebook</div><h2 className="mt-1 text-lg font-bold text-[#142a3d]">Analysis results</h2><p className="mt-1 text-xs text-[#64748b]">Computed locally from {dataset.name}</p></div><button data-testid="button-clear-results" disabled={!results.length} onClick={() => setSaved((old) => ({ ...old, results:[] }))} className="btn-secondary disabled:opacity-40"><Trash2 size={13}/> Clear all</button></div>
+              {!results.length ? <div data-testid="empty-results" className="fine-grid rounded-xl border border-dashed border-[#d2dfe3] p-10 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#dcece8] text-[#147b69]"><BarChart3 size={20}/></div><h3 className="mt-4 text-sm font-bold text-[#142a3d]">Your results will live here</h3><p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-[#64748b]">Run a summary, histogram, or t-test to create an auditable snapshot from the current dataset.</p><button data-testid="button-first-summary" onClick={() => { setActiveTab('data'); runDescriptive(); }} className="btn-primary mt-4">Run a summary</button></div> :
                 <div className="space-y-3">{results.map((r) => <article data-testid={`result-card-${r.id}`} key={r.id} className="rounded-xl border border-[#d2dfe3] bg-[#f8faf9] p-4">
                   <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-bold text-[#142a3d]">{r.title}</h3><p className="mt-1 text-xs text-[#64748b]">{r.summary}</p></div><span className="mono shrink-0 text-[9px] text-[#64748b]">{new Date(r.createdAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}</span></div>
                   {Array.isArray(r.values.bins) ? <div className="mt-5"><div className="flex h-32 items-end gap-1.5 border-b border-l border-[#d2dfe3] px-2">{(r.values.bins as {from:number;to:number;count:number}[]).map((b,i) => <div data-testid={`histogram-bin-${i}`} key={i} title={`${fmt(b.from)}–${fmt(b.to)}: ${b.count}`} className="group relative flex-1 rounded-t-sm bg-[#147b69] transition hover:bg-[#0f6556]" style={{ height:`${Math.max(4, b.count / Math.max(...(r.values.bins as {count:number}[]).map((x) => x.count)) * 100)}%` }}><span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] text-[#64748b]">{b.count}</span></div>)}</div><div className="mt-2 flex justify-between text-[9px] text-[#64748b]"><span>{fmt((r.values.bins as {from:number}[])[0]?.from)}</span><span>{fmt((r.values.bins as {to:number}[]).at(-1)?.to ?? 0)}</span></div></div> :
@@ -419,11 +503,11 @@ export function Workspace() {
             </div>
             <div className="border-t border-[#d2dfe3] p-4">
               <div className="mb-2 flex flex-wrap gap-1.5">
-                {[['Summarize this field','Describe'],['Show a histogram','Histogram'],['Compare the groups','T-test']].map(([label, op]) => <button key={op} data-testid={`suggestion-${op.toLowerCase()}`} onClick={() => submitAssistant(label)} className="rounded-full border border-[#d2dfe3] bg-[#f8faf9] px-2.5 py-1.5 text-[10px] text-[#64748b] hover:border-[#147b69] hover:text-[#147b69]">{label}</button>)}
+                {[['Summarize this field','Describe'],['Show a histogram','Histogram'],['Compare the groups','T-test']].map(([label, op]) => <button key={op} data-testid={`suggestion-${op.toLowerCase()}`} onClick={() => submitAssistant(label)} className="btn-secondary !px-2.5 !py-1.5 !text-[10px]">{label}</button>)}
               </div>
               <form data-testid="assistant-form" onSubmit={(e) => { e.preventDefault(); submitAssistant(); }} className="flex items-end gap-2 rounded-xl border border-[#d2dfe3] bg-[#ffffff] p-2 focus-within:border-[#147b69]">
                 <textarea data-testid="input-assistant-prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitAssistant(); } }} rows={2} placeholder="What would you like to explore?" className="max-h-24 min-h-[42px] flex-1 resize-y bg-transparent px-1 py-1.5 text-xs text-[#142a3d] outline-none placeholder:text-[#94a3b8]"/>
-                <button data-testid="button-send-prompt" type="submit" disabled={!prompt.trim()} aria-label="Send analysis prompt" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#147b69] text-white hover:bg-[#0f6556] disabled:opacity-40"><ArrowRight size={15}/></button>
+                <button data-testid="button-send-prompt" type="submit" disabled={!prompt.trim()} aria-label="Send analysis prompt" className="btn-primary !p-0 h-8 w-8 shrink-0 disabled:opacity-40"><ArrowRight size={15}/></button>
               </form>
               <p className="mt-2 text-center text-[9px] text-[#64748b]">Enter to send · calculations stay on this device</p>
             </div>
@@ -443,14 +527,14 @@ export function Workspace() {
             {!filteredCatalog.length && <div data-testid="catalog-empty" className="col-span-full rounded-xl border border-dashed border-[#d2dfe3] p-8 text-center text-xs text-[#64748b]">No methods match “{search}”. Try another search.</div>}
           </div>
         </section>
-        <footer className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-[#cbd8df] py-4 text-[10px] text-[#64748b]"><span className="flex items-center gap-1.5"><Check size={12} className="text-[#147b69]"/> Workspace saved locally</span><button data-testid="button-reset-footer" onClick={reset} className="flex items-center gap-1 hover:text-[#147b69]">Reset workspace <ChevronRight size={12}/></button></footer>
+        <footer className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-[#cbd8df] py-4 text-[10px] text-[#64748b]"><span className="flex items-center gap-1.5"><Check size={12} className="text-[#147b69]"/> Workspace saved locally</span><button data-testid="button-reset-footer" onClick={reset} className="btn-ghost !px-2 !py-1">Reset workspace <ChevronRight size={12}/></button></footer>
       </div>
     </main>
     {projectManagerOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-[#142a3d]/55 p-4" role="dialog" aria-modal="true" aria-labelledby="projects-title" onClick={(event) => { if (event.target === event.currentTarget) setProjectManagerOpen(false); }}>
       <div className="stat-card max-h-[90dvh] w-full max-w-2xl overflow-y-auto p-5 sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#147b69]">IFRS Lab project directory</p><h2 id="projects-title" className="mt-1 text-xl font-bold text-[#142a3d]">Projects & files</h2><p className="mt-1 text-xs text-[#64748b]">Projects and imported files are saved in this browser.</p></div>
-          <button onClick={() => setProjectManagerOpen(false)} aria-label="Close projects" className="rounded-lg p-2 text-[#64748b] hover:bg-[#eef4f6]"><X size={18}/></button>
+          <button onClick={() => setProjectManagerOpen(false)} aria-label="Close projects" className="btn-icon !rounded-[3px] !w-8 !h-8"><X size={18}/></button>
         </div>
         <form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); createProject(); }}>
           <input value={projectNameInput} onChange={(event) => setProjectNameInput(event.target.value)} placeholder="New project name" aria-label="New project name" className="min-w-0 flex-1 rounded-lg border border-[#d2dfe3] bg-[#ffffff] px-3 py-2.5 text-sm"/>
@@ -462,7 +546,7 @@ export function Workspace() {
             <option value="multiple">{projectStandardLabels.multiple}</option>
             <option value="general">{projectStandardLabels.general}</option>
           </select>
-          <button type="submit" disabled={!projectNameInput.trim() || !projectStandardInput} className="flex items-center justify-center gap-2 rounded-lg bg-[#147b69] px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50"><FolderPlus size={14}/> Start project</button>
+          <button type="submit" disabled={!projectNameInput.trim() || !projectStandardInput} className="btn-primary disabled:opacity-50"><FolderPlus size={14}/> Start project</button>
         </form>
         <div className="mt-5 grid gap-4 md:grid-cols-[.85fr_1.15fr]">
           <section className="rounded-xl border border-[#d2dfe3] p-3">
@@ -472,7 +556,7 @@ export function Workspace() {
           </section>
           <section className="rounded-xl border border-[#d2dfe3] p-3">
             <div className="mb-2 flex items-center justify-between gap-2"><h3 className="truncate text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">{activeProject?.name ?? 'Project files'}</h3>
-              {activeProject && <button onClick={() => { setProjectManagerOpen(false); fileRef.current?.click(); }} className="flex shrink-0 items-center gap-1 rounded-md bg-[#147b69] px-2.5 py-1.5 text-[10px] font-semibold text-white"><Upload size={12}/> Import file</button>}
+              {activeProject && <button onClick={() => { setProjectManagerOpen(false); fileRef.current?.click(); }} className="btn-primary !px-2.5 !py-1.5 !text-[10px] shrink-0"><Upload size={12}/> Import file</button>}
             </div>
             {!activeProject && <p className="p-2 text-xs text-[#64748b]">Select or create a project to view its files.</p>}
             {activeProject && !activeProject.files.length && <p className="p-2 text-xs text-[#64748b]">This folder is empty. Import a CSV, TSV, or Excel file.</p>}
@@ -483,7 +567,7 @@ export function Workspace() {
     </div>}
     {pendingImport && <div className="fixed inset-0 z-[60] grid place-items-center bg-[#142a3d]/55 p-4" role="dialog" aria-modal="true" aria-labelledby="mapping-title" onClick={(event) => { if (event.target === event.currentTarget) cancelPendingImport(); }}>
       <div className="stat-card max-h-[90dvh] w-full max-w-3xl overflow-y-auto p-5 sm:p-7">
-        <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#147b69]">Import to {activeProject?.name}</p><h2 id="mapping-title" className="mt-1 text-xl font-bold text-[#142a3d]">Map your columns</h2><p className="mt-1 text-xs text-[#64748b]">{pendingImport.dataset.name} · {pendingImport.dataset.rows.length} rows · edit field names to match your project.</p></div><button onClick={cancelPendingImport} aria-label="Cancel mapping" className="rounded-lg p-2 text-[#64748b] hover:bg-[#eef4f6]"><X size={18}/></button></div>
+        <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#147b69]">Import to {activeProject?.name}</p><h2 id="mapping-title" className="mt-1 text-xl font-bold text-[#142a3d]">Map your columns</h2><p className="mt-1 text-xs text-[#64748b]">{pendingImport.dataset.name} · {pendingImport.dataset.rows.length} rows · edit field names to match your project.</p></div><button onClick={cancelPendingImport} aria-label="Cancel mapping" className="btn-icon !rounded-[3px] !w-8 !h-8"><X size={18}/></button></div>
         <div className="mt-5 overflow-x-auto rounded-xl border border-[#d2dfe3]">
           <table className="w-full min-w-[560px] text-left"><thead className="bg-[#f4f8f8] text-[10px] uppercase tracking-wide text-[#64748b]"><tr><th className="px-3 py-2">Excel column</th><th className="px-3 py-2">Source heading</th><th className="px-3 py-2">Map to project field</th><th className="px-3 py-2">Example value</th></tr></thead>
             <tbody>{pendingImport.dataset.columns.map((column, index) => <tr key={`${index}-${column.name}`} className="border-t border-[#e7edef]"><td className="px-3 py-2 text-xs font-semibold text-[#147b69]">{columnLetter(index)}</td><td className="px-3 py-2 text-xs text-[#40596b]">{column.name}</td><td className="px-3 py-2"><input value={pendingImport.targets[index]} onChange={(event) => setPendingImport((old) => old ? { ...old, targets: old.targets.map((target, i) => i === index ? event.target.value : target) } : old)} aria-label={`Map ${column.name}`} className="w-full rounded-md border border-[#d2dfe3] bg-[#ffffff] px-2.5 py-2 text-xs"/></td><td className="max-w-[160px] truncate px-3 py-2 text-xs text-[#64748b]">{String(pendingImport.dataset.rows[0]?.[column.name] ?? '—')}</td></tr>)}</tbody>
@@ -491,7 +575,7 @@ export function Workspace() {
         </div>
         <p className="mt-3 text-[11px] text-[#64748b]">Example: map Column A to <strong>principal</strong>. Your original file stays unchanged.</p>
         {error && <p role="alert" className="mt-3 text-xs text-[#922f27]">{error}</p>}
-        <div className="mt-5 flex justify-end gap-2"><button onClick={cancelPendingImport} className="rounded-lg border border-[#d2dfe3] px-4 py-2 text-xs font-semibold text-[#40596b]">Cancel</button><button onClick={confirmImport} className="rounded-lg bg-[#147b69] px-4 py-2 text-xs font-semibold text-white">Save to project</button></div>
+        <div className="mt-5 flex justify-end gap-2"><button onClick={cancelPendingImport} className="btn-secondary">Cancel</button><button onClick={confirmImport} className="btn-primary">Save to project</button></div>
       </div>
     </div>}
   </div>;

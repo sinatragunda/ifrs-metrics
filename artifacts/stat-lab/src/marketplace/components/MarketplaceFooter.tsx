@@ -6,7 +6,8 @@ const columns = [
     links: [
       { label: "IFRS Lab", href: "/ifrs" },
       { label: "Workspace", href: "/workspace/app" },
-      { label: "Loans & Deposits", href: "/loans-deposits" },
+      { label: "Loans overview", href: "/loans-deposits" },
+      { label: "Service catalog", href: "/loans-deposits/marketplace" },
       { label: "Pricing", href: "/ifrs#pricing" },
     ],
   },

@@ -10,6 +10,7 @@ export function AccountProjectsPage() {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsExpanded, setProjectsExpanded] = useState(false);
   const [billingHistoryOpen, setBillingHistoryOpen] = useState(false);
   useEffect(() => {
     if (!user) return;
@@ -30,9 +31,11 @@ export function AccountProjectsPage() {
   const owner = user?.fullName || user?.primaryEmailAddress?.emailAddress || 'Your account';
   const accountEmail = user?.primaryEmailAddress?.emailAddress || 'No email on this account';
   const sortedProjects = projects.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const visibleProjects = projectsExpanded ? sortedProjects : sortedProjects.slice(0, 2);
+  const hasMoreProjects = sortedProjects.length > 2;
   const totalFiles = sortedProjects.reduce((sum, project) => sum + project.files.length, 0);
   return <main className="min-h-screen bg-[#eef4f6] px-4 py-7 text-[#142a3d] sm:px-8">
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-6xl">
       <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-2 text-[11px] text-[#737a77]">
         <Link href="/ifrs" className="font-medium hover:text-[#147b69] hover:underline">Home</Link>
         <span>/</span><span className="font-semibold text-[#34434a]">Account</span>
@@ -48,8 +51,8 @@ export function AccountProjectsPage() {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="rounded-[3px] border border-[#d2dfe3] px-1.5 py-1 text-[9px] font-bold uppercase tracking-[.06em] text-[#64748b]">Local session</span>
-              <Link href="/workspace/app" className="rounded-[3px] bg-[#147b69] px-2 py-1 text-[10px] font-bold text-white hover:bg-[#0f6556]">Workspace</Link>
-              <button type="button" onClick={() => void signOut({ redirectUrl: basePath || '/' })} className="rounded-[3px] border border-[#d2dfe3] px-2 py-1 text-[10px] font-bold text-[#40596b] hover:bg-[#f4f8f8]">Sign out</button>
+              <Link href="/workspace/app" className="btn-primary !px-2 !py-1 !text-[10px]">Workspace</Link>
+              <button type="button" onClick={() => void signOut({ redirectUrl: basePath || '/' })} className="btn-secondary !px-2 !py-1 !text-[10px]">Sign out</button>
             </div>
           </div>
 
@@ -78,9 +81,21 @@ export function AccountProjectsPage() {
             </div>
           </div>
 
-          <div className="mb-3.5 flex flex-wrap items-center gap-2 border-b border-[#d2dfe3] pb-3.5 text-[11px] text-[#64748b]">
-            <span className="rounded-[3px] bg-[#e7f3ef] px-1.5 py-1 text-[10px] font-bold text-[#0f6556]">{totalFiles} files</span>
-            <span>Project movement schedule · dates in local time</span>
+          <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2 border-b border-[#d2dfe3] pb-3.5 text-[11px] text-[#64748b]">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-[3px] bg-[#e7f3ef] px-1.5 py-1 text-[10px] font-bold text-[#0f6556]">{totalFiles} files</span>
+              <span>Project movement schedule · dates in local time</span>
+            </div>
+            {hasMoreProjects && (
+              <button
+                type="button"
+                onClick={() => setProjectsExpanded((open) => !open)}
+                className="btn-secondary !px-1.5 !py-0.5 !text-[10px]"
+                aria-expanded={projectsExpanded}
+              >
+                {projectsExpanded ? 'Show less' : `Expand · ${sortedProjects.length - 2} more`}
+              </button>
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -101,8 +116,8 @@ export function AccountProjectsPage() {
                     </td>
                   </tr>
                 )}
-                {sortedProjects.map((project, index) => (
-                  <tr key={project.id} className={index === sortedProjects.length - 1 ? 'bg-[#f6f9f9]' : undefined}>
+                {visibleProjects.map((project, index) => (
+                  <tr key={project.id} className={index === visibleProjects.length - 1 ? 'bg-[#f6f9f9]' : undefined}>
                     <td className="whitespace-nowrap border-b border-[#e7edef] px-1.5 py-2.5 text-left font-bold text-[#0f6556]">{index + 1}</td>
                     <td className="whitespace-nowrap border-b border-[#e7edef] px-1.5 py-2.5 text-right">
                       <Link href="/workspace/app" className="font-semibold text-[#142a3d] hover:text-[#147b69] hover:underline">{project.name}</Link>
@@ -110,7 +125,7 @@ export function AccountProjectsPage() {
                     <td className="whitespace-nowrap border-b border-[#e7edef] px-1.5 py-2.5 text-right">{projectStandardLabels[project.standard]}</td>
                     <td className="whitespace-nowrap border-b border-[#e7edef] px-1.5 py-2.5 text-right">{project.files.length}</td>
                     <td className="whitespace-nowrap border-b border-[#e7edef] px-1.5 py-2.5 text-right">{new Date(project.createdAt).toLocaleDateString()}</td>
-                    <td className={`whitespace-nowrap px-1.5 py-2.5 text-right ${index === sortedProjects.length - 1 ? '' : 'border-b border-[#e7edef]'}`}>{new Date(latestProjectActivity(project)).toLocaleDateString()}</td>
+                    <td className={`whitespace-nowrap px-1.5 py-2.5 text-right ${index === visibleProjects.length - 1 ? '' : 'border-b border-[#e7edef]'}`}>{new Date(latestProjectActivity(project)).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -124,8 +139,8 @@ export function AccountProjectsPage() {
                 <span>Illustrative movement only</span>
               </div>
               <div className="flex gap-1">
-                <button type="button" onClick={() => setBillingHistoryOpen(true)} className="rounded-[3px] border border-[#d2dfe3] px-1.5 py-0.5 text-[10px] font-bold text-[#40596b] hover:bg-[#f4f8f8]">Expand</button>
-                <Link href="/account/billing" className="rounded-[3px] border border-[#d2dfe3] px-1.5 py-0.5 text-[10px] font-bold text-[#147b69] hover:bg-[#f4f8f8]">Report</Link>
+                <button type="button" onClick={() => setBillingHistoryOpen(true)} className="btn-secondary !px-1.5 !py-0.5 !text-[10px]">Expand</button>
+                <Link href="/account/billing" className="btn-ghost !px-1.5 !py-0.5 !text-[10px]">Report</Link>
               </div>
             </div>
             <table className="w-full min-w-[480px] border-collapse text-[11px] tabular-nums">
@@ -185,8 +200,8 @@ export function AccountProjectsPage() {
           </table>
         </div>
         <div className="mt-3 flex justify-end gap-1.5 border-t border-[#d2dfe3] pt-3">
-          <Link href="/account/billing" className="rounded-[3px] border border-[#d2dfe3] px-2 py-1 text-[10px] font-bold text-[#147b69]">Full report</Link>
-          <button type="button" onClick={() => setBillingHistoryOpen(false)} className="rounded-[3px] bg-[#147b69] px-2 py-1 text-[10px] font-bold text-white">Close</button>
+          <Link href="/account/billing" className="btn-ghost !px-2 !py-1 !text-[10px]">Full report</Link>
+          <button type="button" onClick={() => setBillingHistoryOpen(false)} className="btn-primary !px-2 !py-1 !text-[10px]">Close</button>
         </div>
       </section>
     </div>}
@@ -235,8 +250,8 @@ export function AccountBillingPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#147b69]">IFRS Lab account · {owner}</p><h1 className="mt-2 text-3xl font-bold">Billing statement</h1><p className="mt-1 text-sm text-[#64748b]">Example itemized statement in a spreadsheet-style view.</p></div>
           <div className="flex flex-wrap gap-2 print:hidden">
-            <button type="button" onClick={downloadCsv} className="inline-flex items-center gap-2 rounded-md bg-[#147b69] px-4 py-2 text-sm font-semibold text-white"><ArrowDownToLine size={15}/> Download CSV</button>
-            <button type="button" onClick={() => window.print()} className="rounded-md border border-[#c8d6da] bg-white px-4 py-2 text-sm font-semibold text-[#34434a]">Print / Save PDF</button>
+            <button type="button" onClick={downloadCsv} className="btn-primary"><ArrowDownToLine size={15}/> Download CSV</button>
+            <button type="button" onClick={() => window.print()} className="btn-secondary">Print / Save PDF</button>
           </div>
         </div>
       </header>
