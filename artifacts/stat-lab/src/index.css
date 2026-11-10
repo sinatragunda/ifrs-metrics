@@ -110,11 +110,11 @@
 
 .mono { font-family: var(--app-font-mono); }
 .display { font-family: var(--app-font-serif); }
-.app-shell { min-height: 100dvh; background: #f4f2ec; }
-.sidebar { background: #202d39; color: #e9ece4; }
-.stat-card { background: #fbfaf6; border: 1px solid #e4e0d6; border-radius: 14px; }
-.fine-grid { background-image: linear-gradient(#2f785d0b 1px, transparent 1px), linear-gradient(90deg,#2f785d0b 1px,transparent 1px); background-size: 22px 22px; }
+.app-shell { min-height: 100dvh; background: #eef4f6; }
+.sidebar { background: #142a3d; color: #eef4f6; }
+.stat-card { background: #ffffff; border: 1px solid #d2dfe3; border-radius: 14px; }
+.fine-grid { background-image: linear-gradient(#147b690b 1px, transparent 1px), linear-gradient(90deg,#147b690b 1px,transparent 1px); background-size: 22px 22px; }
 .appear { animation: rise .42s cubic-bezier(.2,.7,.2,1) both; }
 @keyframes rise { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: #c9c7bd; border-radius: 99px; }
+::-webkit-scrollbar-thumb { background: #cbd8df; border-radius: 99px; }

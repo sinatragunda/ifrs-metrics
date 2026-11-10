@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type TouchEvent } from "react";
 import { Link, useLocation } from "wouter";
-import { UserRound } from "lucide-react";
+import { ShoppingCart, UserRound } from "lucide-react";
 import {
   useSubmitIfrsMetricsInterest,
   type IfrsMetricsInterestRequestStandardsItem,
 } from "@workspace/api-client-react";
+import { useMarketplaceCart } from "@/marketplace";
+import { LAB_RETURN_PATH, setCheckoutReturnPath } from "@/marketplace/storage";
 import {
   calculateInitialLeaseLiability,
   calculateLeaseSchedule,
@@ -73,6 +75,7 @@ function formatAmount(amount: number): string {
 
 export function IfrsMetrics() {
   const [, setLocation] = useLocation();
+  const { cartItems, upsertLabSelection } = useMarketplaceCart();
   const [sampleIndex, setSampleIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<"fortnight" | "monthly">("fortnight");
@@ -166,7 +169,7 @@ export function IfrsMetrics() {
   }
 
   useEffect(() => {
-    document.title = "IFRS Metrics — Traceable schedules in development";
+    document.title = "IFRS Metrics";
     document.querySelector('meta[name="description"]')?.setAttribute("content", "IFRS Metrics is in development. Explore the planned IFRS 16, IFRS 9, and IFRS 17 workflows and an illustrative lease schedule.");
   }, []);
 
@@ -193,21 +196,64 @@ export function IfrsMetrics() {
         .ifrs-page .nav { display: flex; gap: 30px; align-items: center; font-size: 13px; font-weight: 600; color: var(--muted); }
         .ifrs-page .nav a { text-decoration: none; transition: color .2s ease; }
         .ifrs-page .nav a:hover { color: var(--teal-dark); }
-        .ifrs-page .nav-cta { color: var(--teal) !important; border: 1px solid #9bbeb7; padding: 9px 13px; border-radius: 5px; }
+        .ifrs-page .nav-cta {
+          color: var(--teal) !important;
+          border: 1px solid #9bbeb7;
+          padding: 7px 11px;
+          border-radius: 3px;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: .06em;
+          white-space: nowrap;
+        }
+        .ifrs-page .nav-cta:hover { background: var(--pale-teal); border-color: var(--teal); }
         .ifrs-page .pricing-link { color: inherit; }
-        .ifrs-page .profile-link { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #9bbeb7; border-radius: 50%; color: var(--teal-dark); }
+        .ifrs-page .profile-link { display: grid; place-items: center; width: 29px; height: 29px; border: 1px solid #9bbeb7; border-radius: 50%; color: var(--teal-dark); background: white; }
+        .ifrs-page .profile-link:hover { background: var(--pale-teal); border-color: var(--teal); }
         .ifrs-page .hero { display: grid; grid-template-columns: .92fr 1.08fr; gap: clamp(38px, 6vw, 76px); align-items: center; padding: 67px 0 72px; }
         .ifrs-page .eyebrow { display: flex; align-items: center; gap: 9px; color: var(--teal-dark); text-transform: uppercase; letter-spacing: .13em; font-size: 10px; font-weight: 700; margin: 0 0 21px; }
         .ifrs-page .eyebrow:before { content: ""; width: 23px; height: 1px; background: var(--teal); }
         .ifrs-page h1 { font-size: clamp(42px, 5.5vw, 67px); line-height: .99; letter-spacing: -.065em; max-width: 600px; margin: 0 0 21px; font-weight: 700; }
         .ifrs-page h1 .accent { color: var(--teal); }
         .ifrs-page .hero-copy { color: var(--muted); font-size: 16px; max-width: 440px; margin: 0 0 26px; line-height: 1.7; }
-        .ifrs-page .actions { display: flex; align-items: center; gap: 21px; flex-wrap: wrap; }
-        .ifrs-page .button { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; background: var(--teal); color: #f5faf8; padding: 13px 16px; border-radius: 5px; font-size: 13px; font-weight: 700; transition: background .2s ease, transform .2s ease; }
-        .ifrs-page .button:hover { background: var(--teal-dark); transform: translateY(-2px); }
-        .ifrs-page .button svg, .ifrs-page .text-link svg { width: 16px; height: 16px; }
-        .ifrs-page .text-link { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 700; text-decoration: none; }
-        .ifrs-page .text-link:hover { color: var(--teal); }
+        .ifrs-page .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .ifrs-page .button {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          text-decoration: none;
+          background: var(--teal);
+          color: #f5faf8;
+          border: 1px solid var(--teal);
+          padding: 8px 12px;
+          border-radius: 3px;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: .06em;
+          white-space: nowrap;
+          transition: background .15s ease, border-color .15s ease;
+        }
+        .ifrs-page .button:hover { background: var(--teal-dark); border-color: var(--teal-dark); }
+        .ifrs-page .button svg, .ifrs-page .text-link svg { width: 13px; height: 13px; }
+        .ifrs-page .text-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          color: var(--muted);
+          border: 1px solid var(--line);
+          padding: 8px 12px;
+          border-radius: 3px;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: .06em;
+          text-decoration: none;
+          white-space: nowrap;
+          background: white;
+        }
+        .ifrs-page .text-link:hover { color: var(--teal-dark); border-color: var(--teal); background: var(--pale-teal); }
         .ifrs-page .microproof { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); margin-top: 24px; }
         .ifrs-page .microproof span { color: var(--teal); font-size: 14px; font-weight: 700; }
         .ifrs-page .schedule-shell { position: relative; }
@@ -336,15 +382,14 @@ export function IfrsMetrics() {
           .ifrs-page .brand { flex: 0 0 auto; font-size: 16px; white-space: nowrap; }
           .ifrs-page .nav { min-width: 0; flex: 1; justify-content: flex-end; gap: 7px; }
           .ifrs-page .nav a:not(.nav-cta):not(.pricing-link):not(.profile-link) { display: none; }
-          .ifrs-page .nav .nav-cta { padding: 7px 8px; font-size: 10px; }
-          .ifrs-page .nav .schedule-nav-cta { display: none; }
+          .ifrs-page .nav .nav-cta { padding: 7px 10px; font-size: 10px; }
           .ifrs-page .nav .pricing-link { border: 1px solid #9bbeb7; border-radius: 5px; padding: 7px 8px; font-size: 10px; }
           .ifrs-page .hero { grid-template-columns: 1fr; gap: 38px; padding: 50px 0 51px; }
           .ifrs-page .hero > * { min-width: 0; }
           .ifrs-page h1 { max-width: 10ch; font-size: clamp(36px, 9.5vw, 46px); overflow-wrap: anywhere; }
           .ifrs-page .hero-copy { width: 100%; max-width: 100%; font-size: 15px; }
           .ifrs-page .actions { align-items: flex-start; gap: 12px; }
-          .ifrs-page .text-link { font-size: 12px; }
+          .ifrs-page .text-link { font-size: 11px; }
           .ifrs-page .schedule-shell { margin-right: 9px; }
           .ifrs-page .schedule { padding: 16px 13px 13px; }
           .ifrs-page .schedule-head { align-items: flex-start; }
@@ -387,7 +432,17 @@ export function IfrsMetrics() {
             <a href="#roadmap">Standards</a>
             <a href="#pricing" className="pricing-link">Pricing</a>
             <a href="#approach">Approach</a>
-            <a href="#schedule" className="nav-cta schedule-nav-cta">View sample schedule</a>
+            <Link href="/loans-deposits" className="nav-cta">IFRS Metrics Loans and Deposits</Link>
+            <Link
+              href="/loans-deposits?cart=open"
+              className="profile-link"
+              title="Shared cart"
+              aria-label={`Open cart, ${cartItems.length} items`}
+              style={{ width: "auto", padding: "0 9px", borderRadius: 6, gap: 6, display: "inline-flex", alignItems: "center" }}
+            >
+              <ShoppingCart size={15} />
+              <span style={{ fontSize: 11, fontWeight: 700 }}>{cartItems.length}</span>
+            </Link>
             <Link href="/sign-in" className="profile-link" title="Sign in" aria-label="Sign in"><UserRound size={17}/></Link>
           </nav>
         </header>
@@ -399,6 +454,7 @@ export function IfrsMetrics() {
             <p className="hero-copy">IFRS Metrics is being built to help finance teams turn source data and controlled assumptions into clear IFRS schedules and reports.</p>
             <div className="actions">
               <Link className="button" href="/workspace/app">Open Workspace Lab <Arrow /></Link>
+              <Link className="text-link" href="/loans-deposits">IFRS Metrics Loans and Deposits <Arrow /></Link>
               <a className="text-link" href="#schedule">See an illustrative schedule <Arrow /></a>
               <a className="text-link" href="#interest">Register interest <Arrow /></a>
             </div>
@@ -616,21 +672,20 @@ export function IfrsMetrics() {
               className="button pricing-checkout-button"
               type="button"
               onClick={() => {
-                sessionStorage.setItem("ifrs-lab-checkout", JSON.stringify({
+                upsertLabSelection({
                   plan: selectedPlan,
                   lightSupport: lightSupportSelected ? lightSupportCadence : null,
                   dedicatedSupport: dedicatedSupportSelected ? dedicatedSupportCadence : null,
-                  fortnightTotal,
-                  monthlyTotal,
-                }));
+                });
+                setCheckoutReturnPath(LAB_RETURN_PATH);
                 setLocation("/checkout");
               }}
               aria-describedby="checkout-routing-note"
             >
-              Continue to checkout <Arrow />
+              Add to cart & checkout <Arrow />
             </button>
             <p className="pricing-checkout-note" id="checkout-routing-note">
-              Review your selection and sign in or create an account to continue.
+              Adds these Lab items to the shared cart with Loans & Deposits, then opens checkout review.
             </p>
           </div>
           <p className="pricing-note">Support options are optional add-ons. Support prices exclude tax. Billing cycles are shown separately. Selecting options does not start a subscription or take payment.</p>
