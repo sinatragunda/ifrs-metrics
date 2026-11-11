@@ -94,10 +94,6 @@ export function WorkspaceHome() {
       setInviteFeedback({ kind: 'error', message: 'Enter a valid email address.' });
       return;
     }
-    if (!inviteProjectIds.length) {
-      setInviteFeedback({ kind: 'error', message: 'Select at least one project, or use Select all.' });
-      return;
-    }
     const invite: PendingInvite = {
       id: `invite-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       email,
@@ -111,7 +107,9 @@ export function WorkspaceHome() {
       const count = inviteProjectIds.length;
       setInviteFeedback({
         kind: 'success',
-        message: `Invite saved for ${email} · ${count} ${count === 1 ? 'project' : 'projects'} in ${activeWorkspace.name}.`,
+        message: count
+          ? `Invite saved for ${email} · ${activeWorkspace.name} · ${count} ${count === 1 ? 'project' : 'projects'}.`
+          : `Invite saved for ${email} · workspace access to ${activeWorkspace.name}.`,
       });
       setInviteEmail('');
       setInviteProjectIds([]);
@@ -281,7 +279,7 @@ export function WorkspaceHome() {
             </div>
             <div>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">Projects to share</p>
+                <p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">Projects to share <span className="font-medium normal-case tracking-normal text-[#94a3b8]">(optional)</span></p>
                 <button
                   type="button"
                   onClick={toggleSelectAllProjects}
@@ -293,7 +291,7 @@ export function WorkspaceHome() {
               </div>
               {!projects.length ? (
                 <p className="rounded-lg border border-dashed border-[#d2dfe3] bg-white px-3 py-3 text-sm text-[#64748b]">
-                  No projects in this workspace yet. Create a project before inviting someone.
+                  No projects yet. You can still invite them to this workspace.
                 </p>
               ) : (
                 <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-[#d2dfe3] bg-white p-2">
@@ -333,7 +331,7 @@ export function WorkspaceHome() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="submit"
-                disabled={!inviteEmail.trim() || !inviteProjectIds.length}
+                disabled={!inviteEmail.trim()}
                 className="btn-primary disabled:opacity-50"
               >
                 Send invite

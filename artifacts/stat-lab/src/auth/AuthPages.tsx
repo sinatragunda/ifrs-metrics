@@ -7,16 +7,22 @@ import { basePath } from '@/auth/clerk-config';
 import { SessionUserContext, type SessionUser } from '@/auth/session';
 
 export function HomeRedirect() {
-  return <><Show when="signed-in"><Redirect to="/account"/></Show><Show when="signed-out"><IfrsMetrics/></Show></>;
+  return <><Show when="signed-in"><Redirect to="/workspace"/></Show><Show when="signed-out"><IfrsMetrics/></Show></>;
+}
+
+function authRedirectUrl() {
+  const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+  if (returnTo === '/checkout') return `${basePath}/checkout`;
+  return `${basePath}/workspace`;
 }
 
 export function SignInPage() {
-  const redirect = new URLSearchParams(window.location.search).get('returnTo') === '/checkout' ? `${basePath}/checkout` : undefined;
+  const redirect = authRedirectUrl();
   return <div className="flex min-h-[100dvh] items-center justify-center bg-[#eef4f6] px-4"><SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} forceRedirectUrl={redirect} signUpForceRedirectUrl={redirect}/></div>;
 }
 
 export function SignUpPage() {
-  const redirect = new URLSearchParams(window.location.search).get('returnTo') === '/checkout' ? `${basePath}/checkout` : undefined;
+  const redirect = authRedirectUrl();
   return <div className="flex min-h-[100dvh] items-center justify-center bg-[#eef4f6] px-4"><SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} forceRedirectUrl={redirect} signInForceRedirectUrl={redirect}/></div>;
 }
 
