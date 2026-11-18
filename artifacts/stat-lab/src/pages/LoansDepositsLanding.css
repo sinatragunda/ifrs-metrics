@@ -35,9 +35,9 @@
   display: flex; gap: 9px; align-items: center; font-weight: 800; font-size: 19px; letter-spacing: -.045em;
 }
 .ld-page .brandmark {
-  width: 27px; height: 27px; background: var(--ink); color: #f4f8f8;
-  border-radius: 7px 7px 7px 2px; display: grid; place-items: center; font-size: 12px;
-}
+          width: 27px; height: 27px; object-fit: contain;
+          border-radius: 7px; display: block; flex-shrink: 0;
+        }
 .ld-page .brand em { color: var(--accent); font-style: normal; }
 .ld-page .nav { display: flex; gap: 16px; align-items: center; font-size: 13px; font-weight: 600; color: var(--muted); }
 .ld-page .nav a:hover { color: var(--ink); }

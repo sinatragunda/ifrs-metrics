@@ -109,7 +109,7 @@ export default function LoansDepositsLanding() {
       <div className="frame">
         <header className="header">
           <Link href="/ifrs" className="brand" aria-label="IFRS Metrics home">
-            <span className="brandmark">IM</span>
+            <img className="brandmark" src={`${import.meta.env.BASE_URL}favicon.ico`} alt="" width={27} height={27} />
             <span>IFRS <em>Metrics</em></span>
           </Link>
           <nav className="nav" aria-label="Loans and deposits">

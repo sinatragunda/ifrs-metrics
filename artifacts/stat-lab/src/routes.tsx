@@ -9,7 +9,7 @@ import { basePath, clerkAppearance, clerkProxyUrl, clerkPubKey } from '@/auth/cl
 import { SessionUserContext } from '@/auth/session';
 import { AccountBillingRoute, AccountRoute } from '@/pages/AccountPages';
 import { CheckoutReviewPage } from '@/pages/CheckoutReviewPage';
-import { WorkspaceAppRoute, WorkspaceEntry } from '@/pages/WorkspaceHome';
+import { WorkspaceAppRoute } from '@/pages/Workspace';
 
 export function LocalRoutes() {
   return (
@@ -19,8 +19,7 @@ export function LocalRoutes() {
         <Route path="/ifrs" component={IfrsMetrics}/>
         <Route path="/loans-deposits/marketplace" component={MarketplacePage}/>
         <Route path="/loans-deposits" component={LoansDepositsLanding}/>
-        <Route path="/workspace" component={WorkspaceEntry}/>
-        <Route path="/workspace/app" component={WorkspaceAppRoute}/>
+        <Route path="/workspace/*?" component={WorkspaceAppRoute}/>
         <Route path="/account/billing" component={ClerkSetupPage}/>
         <Route path="/account" component={ClerkSetupPage}/>
         <Route path="/checkout" component={ClerkSetupPage}/>
@@ -41,7 +40,7 @@ export function ClerkRoutes() {
     appearance={clerkAppearance}
     signInUrl={`${basePath}/sign-in`}
     signUpUrl={`${basePath}/sign-up`}
-    localization={{signIn:{start:{title:'Welcome back',subtitle:'Sign in to access your IFRS Lab projects'}},signUp:{start:{title:'Create your account',subtitle:'Save and track your IFRS Lab projects'}}}}
+    localization={{signIn:{start:{title:'Welcome back',subtitle:'Sign in to access your IFRS Metrics Workspace'}},signUp:{start:{title:'Create your account',subtitle:'Save and track your IFRS Lab projects'}}}}
     routerPush={(to) => setLocation(stripBase(to))}
     routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
   >
@@ -51,8 +50,7 @@ export function ClerkRoutes() {
         <Route path="/ifrs" component={IfrsMetrics}/>
         <Route path="/loans-deposits/marketplace" component={MarketplacePage}/>
         <Route path="/loans-deposits" component={LoansDepositsLanding}/>
-        <Route path="/workspace" component={WorkspaceEntry}/>
-        <Route path="/workspace/app" component={WorkspaceAppRoute}/>
+        <Route path="/workspace/*?" component={WorkspaceAppRoute}/>
         <Route path="/account/billing" component={AccountBillingRoute}/>
         <Route path="/account" component={AccountRoute}/>
         <Route path="/checkout" component={CheckoutReviewPage}/>

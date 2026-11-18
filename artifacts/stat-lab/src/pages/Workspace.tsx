@@ -1,11 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, ArrowDownToLine, ArrowRight, BarChart3, Check, ChevronDown, ChevronRight, CircleHelp, Database, FileSpreadsheet, Filter, FlaskConical, Folder, FolderOpen, FolderPlus, Layers3, MessageSquareText, PanelLeftClose, PanelLeftOpen, Search, Sparkles, Table2, Trash2, Upload, UserRound, X } from 'lucide-react';
+import { Activity, ArrowDownToLine, ArrowRight, BarChart3, Check, ChevronDown, ChevronRight, CircleHelp, Database, FileSpreadsheet, Filter, FlaskConical, Folder, FolderOpen, FolderPlus, Layers3, MessageSquareText, PanelLeftClose, PanelLeftOpen, Search, Sparkles, Table2, Trash2, Upload, X } from 'lucide-react';
 import { Link } from 'wouter';
 import * as XLSX from 'xlsx';
 import { useSessionUser } from '@/auth/session';
+import { UserAccountMenu } from '@/components/UserAccountMenu';
 import { catalog, columnLetter, demo, fmt, mean, numericFields, nums, toDataset, toDatasetFromMatrix, twoSidedTPValue, variance } from '@/lib/dataset';
+import { visibleProjectsInWorkspace, visibleWorkspaces } from '@/lib/project-access';
 import { readProjectStore } from '@/lib/project-store';
-import { projectStandardLabels, type ChatMessage, type Dataset, type Project, type ProjectFile, type ProjectStandard, type ProjectStore, type Saved } from '@/lib/workspace-types';
+import { DEFAULT_WORKSPACE_ID, projectStandardLabels, type ChatMessage, type Dataset, type Project, type ProjectFile, type ProjectStandard, type ProjectStore, type Saved } from '@/lib/workspace-types';
+import { WorkspaceHomeSection } from '@/pages/WorkspaceHome';
+
+export function WorkspaceAppRoute() {
+  const user = useSessionUser();
+  if (user) return <Workspace/>;
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-center gap-3 bg-[#dcece8] px-4 py-3 text-center text-xs text-[#095e55]">
+        <strong>Demo workspace</strong>
+        <span>This session uses sample data saved only in this browser.</span>
+      </div>
+      <Workspace/>
+    </div>
+  );
+}
 
 export function Workspace() {
   const user = useSessionUser();
@@ -18,7 +35,9 @@ export function Workspace() {
     return { dataset: demo, results: [], messages: [] };
   });
   const { dataset, results, messages } = saved;
-  const [activeTab, setActiveTab] = useState<'data' | 'results'>('data');
+  const [activeTab, setActiveTab] = useState<'lab' | 'data' | 'results'>(() =>
+    window.location.pathname.includes('/workspace/app') ? 'data' : 'lab',
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('ifrs-lab-sidebar-collapsed') === 'true'; }
     catch { return false; }
@@ -263,8 +282,31 @@ export function Workspace() {
     const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([body], { type:'text/csv;charset=utf-8' })); link.download = `${dataset.name.replace(/[^a-z0-9-_]+/gi, '-')}.csv`; link.click(); URL.revokeObjectURL(link.href);
   };
   const reset = () => { setSaved({ dataset:demo, results:[], messages:[] }); setAppliedFilter(null); setError(''); setActiveTab('data'); };
-  const workspaceProjects = projectStore.projects.filter((project) => project.workspaceId === projectStore.activeWorkspaceId);
+  const accessibleWorkspaces = visibleWorkspaces(projectStore.workspaces, user);
+  const activeWorkspaceId = accessibleWorkspaces.some((workspace) => workspace.id === projectStore.activeWorkspaceId)
+    ? projectStore.activeWorkspaceId
+    : (accessibleWorkspaces[0]?.id ?? DEFAULT_WORKSPACE_ID);
+  const workspaceProjects = visibleProjectsInWorkspace(projectStore.projects, activeWorkspaceId, user);
   const activeProject = workspaceProjects.find((project) => project.id === projectStore.activeProjectId);
+
+  useEffect(() => {
+    setProjectStore((old) => {
+      const workspaces = visibleWorkspaces(old.workspaces, user);
+      const nextWorkspaceId = workspaces.some((workspace) => workspace.id === old.activeWorkspaceId)
+        ? old.activeWorkspaceId
+        : (workspaces[0]?.id ?? DEFAULT_WORKSPACE_ID);
+      const projects = visibleProjectsInWorkspace(old.projects, nextWorkspaceId, user);
+      const keepProject = Boolean(old.activeProjectId && projects.some((project) => project.id === old.activeProjectId));
+      const nextProjectId = keepProject ? old.activeProjectId : null;
+      if (nextWorkspaceId === old.activeWorkspaceId && nextProjectId === old.activeProjectId) return old;
+      return {
+        ...old,
+        activeWorkspaceId: nextWorkspaceId,
+        activeProjectId: nextProjectId,
+        activeFileId: keepProject ? old.activeFileId : null,
+      };
+    });
+  }, [user, projectStore.projects, projectStore.workspaces]);
 
   const toggleProjectExpanded = (projectId: string) => {
     setExpandedProjects((current) =>
@@ -275,36 +317,57 @@ export function Workspace() {
   return <div className="app-shell flex">
     <aside className={`sidebar hidden shrink-0 flex-col min-h-[100dvh] py-4 transition-all duration-200 md:flex ${sidebarCollapsed ? 'md:w-[76px] px-2' : 'md:w-[252px] px-3'}`}>
       <div className={`flex items-center pb-4 ${sidebarCollapsed ? 'flex-col gap-3' : 'gap-2 px-1'}`}>
-        <div className={`flex min-w-0 items-center ${sidebarCollapsed ? 'justify-center' : 'flex-1 gap-2.5'}`}>
-          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] bg-[#0078d4] text-white shadow-sm"><Activity size={16}/></div>
+        <Link
+          href="/ifrs"
+          aria-label="IFRS Metrics home"
+          className={`flex min-w-0 items-center text-inherit no-underline hover:opacity-90 ${sidebarCollapsed ? 'justify-center' : 'flex-1 gap-2.5'}`}
+        >
+          <img src={`${import.meta.env.BASE_URL}favicon.ico`} alt="" className="h-8 w-8 shrink-0 rounded-[4px] object-contain" />
           {!sidebarCollapsed && <div className="min-w-0"><div className="truncate text-[13px] font-semibold tracking-tight text-[#1f2328]">IFRS Metrics Lab</div><div className="text-[10px] text-[#605e5c]">File Explorer</div></div>}
-        </div>
+        </Link>
         <button data-testid="button-toggle-sidebar" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} className="grid h-7 w-7 shrink-0 place-items-center rounded-[4px] border border-[#d8dde4] bg-white text-[#605e5c] hover:bg-[#edebe9]" title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed}>
           {sidebarCollapsed ? <PanelLeftOpen size={14}/> : <PanelLeftClose size={14}/>}
         </button>
       </div>
 
+     
+      <button
+        type="button"
+        title="Manage Workspaces"
+        aria-label="Manage Workspaces"
+        onClick={() => setActiveTab('lab')}
+        className={`mb-2 flex w-full items-center rounded-[4px] border border-[#d8dde4] bg-white py-2 text-[12px] transition ${
+          sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-2.5'
+        } ${activeTab === 'lab' ? 'bg-[#cce4f7] font-semibold text-[#003966]' : 'text-[#323130] hover:bg-[#edebe9]'}`}
+      >
+        <Layers3 size={15} className={activeTab === 'lab' ? 'text-[#0078d4]' : 'text-[#605e5c]'}/>
+        {!sidebarCollapsed && 'Manage Workspaces'}
+      </button>
+
+      <br/>
+
       {!sidebarCollapsed && <>
-        <div className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[.08em] text-[#605e5c]">Navigation</div>
-        {!sidebarCollapsed && <select aria-label="Select workspace" value={projectStore.activeWorkspaceId} onChange={(event) => {
+        {/* <div className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[.08em] text-[#605e5c]">Navigation</div>
+         */}
+        <select aria-label="Select workspace" value={activeWorkspaceId} onChange={(event) => {
           const nextWorkspaceId = event.target.value;
-          setProjectStore((old) => {
-            const nextProject = old.projects.find((project) => project.workspaceId === nextWorkspaceId);
-            return { ...old, activeWorkspaceId: nextWorkspaceId, activeProjectId: nextProject?.id ?? null, activeFileId: null };
-          });
-          if (nextWorkspaceId) {
-            const nextProject = projectStore.projects.find((project) => project.workspaceId === nextWorkspaceId);
-            if (nextProject) setExpandedProjects((current) => current.includes(nextProject.id) ? current : [...current, nextProject.id]);
-          }
+          const nextProject = visibleProjectsInWorkspace(projectStore.projects, nextWorkspaceId, user)[0];
+          setProjectStore((old) => ({
+            ...old,
+            activeWorkspaceId: nextWorkspaceId,
+            activeProjectId: nextProject?.id ?? null,
+            activeFileId: null,
+          }));
+          if (nextProject) setExpandedProjects((current) => current.includes(nextProject.id) ? current : [...current, nextProject.id]);
         }} className="mb-2 w-full rounded-[4px] border border-[#d8dde4] bg-white px-2.5 py-1.5 text-xs font-medium text-[#1f2328]">
-          {projectStore.workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}{workspace.isDefault ? ' · Default' : ''}</option>)}
-        </select>}
+          {accessibleWorkspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}{workspace.isDefault ? ' · Default' : ''}</option>)}
+        </select>
 
         <div className="mb-2 rounded-[4px] border border-[#d8dde4] bg-white">
           <div className="flex items-center gap-1 border-b border-[#edebe9] px-2 py-1.5">
             <FolderOpen size={14} className="ms-folder-open shrink-0" fill="currentColor" />
             <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-[#1f2328]">
-              {projectStore.workspaces.find((workspace) => workspace.id === projectStore.activeWorkspaceId)?.name ?? 'Workspace'}
+              {accessibleWorkspaces.find((workspace) => workspace.id === activeWorkspaceId)?.name ?? 'Workspace'}
             </span>
             <button type="button" title="Projects & files" aria-label="Projects and files" onClick={() => setProjectManagerOpen(true)} className="grid h-6 w-6 place-items-center rounded-[3px] text-[#0078d4] hover:bg-[#cce4f7]">
               <FolderPlus size={13}/>
@@ -376,7 +439,8 @@ export function Workspace() {
         </button>
       )}
 
-      <button title="Data & explore" aria-label="Data and explore" data-testid="nav-data" onClick={() => setActiveTab('data')} className={`flex items-center rounded-[4px] py-2 text-[12px] transition ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-2.5'} ${activeTab === 'data' ? 'bg-[#cce4f7] font-semibold text-[#003966]' : 'text-[#323130] hover:bg-[#edebe9]'}`}><Table2 size={15} className={activeTab === 'data' ? 'text-[#0078d4]' : 'text-[#605e5c]'}/>{!sidebarCollapsed && 'Data & explore'}</button>
+      
+      <button title="Data & explore" aria-label="Data and explore" data-testid="nav-data" onClick={() => setActiveTab('data')} className={`mt-0.5 flex items-center rounded-[4px] py-2 text-[12px] transition ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-2.5'} ${activeTab === 'data' ? 'bg-[#cce4f7] font-semibold text-[#003966]' : 'text-[#323130] hover:bg-[#edebe9]'}`}><Table2 size={15} className={activeTab === 'data' ? 'text-[#0078d4]' : 'text-[#605e5c]'}/>{!sidebarCollapsed && 'Data & explore'}</button>
       <button title="Results" aria-label={`Results, ${results.length}`} data-testid="nav-results" onClick={() => setActiveTab('results')} className={`mt-0.5 flex items-center rounded-[4px] py-2 text-[12px] transition ${sidebarCollapsed ? 'justify-center px-0' : 'justify-between px-2.5'} ${activeTab === 'results' ? 'bg-[#cce4f7] font-semibold text-[#003966]' : 'text-[#323130] hover:bg-[#edebe9]'}`}><span className={`flex items-center ${sidebarCollapsed ? '' : 'gap-2.5'}`}><BarChart3 size={15} className={activeTab === 'results' ? 'text-[#0078d4]' : 'text-[#605e5c]'}/>{!sidebarCollapsed && 'Results'}</span>{!sidebarCollapsed && <span className="mono text-[10px] text-[#605e5c]">{results.length}</span>}</button>
 
       {!sidebarCollapsed && <div className="mx-1 mt-6 border-t border-[#d8dde4] pt-4">
@@ -398,11 +462,13 @@ export function Workspace() {
             <div className="hidden md:flex items-center gap-1.5 text-xs text-[#64748b]">
               <Link href="/ifrs" className="font-medium hover:text-[#147b69] hover:underline">Home</Link>
               <span>/</span>
-              <Link href="/workspace" className="hover:text-[#147b69] hover:underline">Workspace</Link>
-              <span>/</span>
-              <span className="font-semibold text-[#40596b]">{activeTab === 'data' ? 'Data & Explore' : 'Results'}</span>
+              <button type="button" onClick={() => setActiveTab('lab')} className={`hover:text-[#147b69] hover:underline ${activeTab === 'lab' ? 'font-semibold text-[#40596b]' : ''}`}>Manage Workspaces</button>
+              {activeTab !== 'lab' && <>
+                <span>/</span>
+                <span className="font-semibold text-[#40596b]">{activeTab === 'data' ? 'Data & Explore' : 'Results'}</span>
+              </>}
             </div>
-            <div className="md:hidden truncate text-sm font-semibold">{activeTab === 'data' ? 'Data & explore' : 'Results'}</div>
+            <div className="md:hidden truncate text-sm font-semibold">{activeTab === 'lab' ? 'Manage Workspaces' : activeTab === 'data' ? 'Data & explore' : 'Results'}</div>
           </div>
           <div className="flex items-center gap-2">
             <span className="hidden items-center gap-1.5 rounded-full border border-[#9bbeb7] bg-[#dcece8] px-2.5 py-1 text-[10px] font-semibold text-[#095e55] sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-[#147b69]"/> Browser session</span>
@@ -410,11 +476,26 @@ export function Workspace() {
             <input ref={fileRef} type="file" accept=".csv,.tsv,.xlsx,.xls,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" data-testid="input-file" onChange={(e) => void importFile(e.target.files?.[0])}/>
             <button data-testid="button-import" onClick={() => activeProject ? fileRef.current?.click() : setProjectManagerOpen(true)} disabled={uploadBusy} className="btn-secondary disabled:opacity-60"><Upload size={14}/><span className="hidden sm:inline">{uploadBusy ? 'Reading…' : 'Import data'}</span></button>
             <button data-testid="button-export" onClick={exportCsv} className="btn-primary"><ArrowDownToLine size={14}/><span className="hidden sm:inline">Export CSV</span></button>
-            <Link href={user ? "/account" : "/sign-in"} title={user ? "Your account" : "Sign in"} aria-label={user ? "Your account" : "Sign in"} className="btn-icon"><UserRound size={16}/></Link>
+            <UserAccountMenu />
           </div>
         </div>
       </header>
       <div className="mx-auto max-w-[1500px] px-4 py-6 md:px-8 md:py-8">
+        {activeTab === 'lab' ? (
+          <WorkspaceHomeSection
+            projectStore={projectStore}
+            onProjectStoreChange={setProjectStore}
+            onOpenProject={(project) => {
+              selectProject(project);
+              setExpandedProjects((current) => current.includes(project.id) ? current : [...current, project.id]);
+              setActiveTab('data');
+            }}
+            onStartProject={() => {
+              setProjectManagerOpen(true);
+              setActiveTab('data');
+            }}
+          />
+        ) : <>
         <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
           <div className="appear">
             <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-[#147b69]"><span className="h-px w-5 bg-[#147b69]"/> A clearer path from data to evidence</div>
@@ -528,6 +609,7 @@ export function Workspace() {
           </div>
         </section>
         <footer className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-[#cbd8df] py-4 text-[10px] text-[#64748b]"><span className="flex items-center gap-1.5"><Check size={12} className="text-[#147b69]"/> Workspace saved locally</span><button data-testid="button-reset-footer" onClick={reset} className="btn-ghost !px-2 !py-1">Reset workspace <ChevronRight size={12}/></button></footer>
+        </>}
       </div>
     </main>
     {projectManagerOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-[#142a3d]/55 p-4" role="dialog" aria-modal="true" aria-labelledby="projects-title" onClick={(event) => { if (event.target === event.currentTarget) setProjectManagerOpen(false); }}>

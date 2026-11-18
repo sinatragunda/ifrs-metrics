@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
-import { SignIn, SignUp, useUser } from '@clerk/react';
+import { useEffect, type ReactNode } from 'react';
+import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
 import { Show } from '@clerk/react';
 import { Link, Redirect } from 'wouter';
 import IfrsMetrics from '@/pages/IfrsMetrics';
 import { basePath } from '@/auth/clerk-config';
 import { SessionUserContext, type SessionUser } from '@/auth/session';
+import { httpService } from '@/lib/http-service';
 
 export function HomeRedirect() {
   return <><Show when="signed-in"><Redirect to="/workspace"/></Show><Show when="signed-out"><IfrsMetrics/></Show></>;
@@ -28,6 +29,13 @@ export function SignUpPage() {
 
 export function ClerkSessionBridge({ children }: { children: ReactNode }) {
   const { user } = useUser();
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    httpService.setTokenGetter(() => getToken());
+    return () => httpService.setTokenGetter(null);
+  }, [getToken]);
+
   const sessionUser: SessionUser = user
     ? {
         id: user.id,

@@ -43,7 +43,7 @@ export function AccountProjectsPage() {
 
       <div className="relative mr-3">
         <div className="absolute right-[-13px] top-[-13px] h-[80%] w-[88%] rounded-lg bg-[#d6e3e8]" aria-hidden="true" />
-        <article className="relative rounded-[7px] border border-[#d2dfe3] bg-white p-[21px_21px_15px] shadow-[0_18px_40px_rgba(19,43,60,.07)]" aria-label="Account schedule">
+        <article className="relative rounded-[7px] border border-[#d2dfe3] bg-white p-[21px_21px_15px] shadow-[0_18px_40px_rgba(19,43,60,.07)]" aria-label="Account Details">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#d2dfe3] pb-4">
             <div>
               <span className="mb-1 block text-[9px] font-bold uppercase tracking-[.12em] text-[#147b69]">Account · IFRS Lab</span>
@@ -52,7 +52,7 @@ export function AccountProjectsPage() {
             <div className="flex items-center gap-1.5">
               <span className="rounded-[3px] border border-[#d2dfe3] px-1.5 py-1 text-[9px] font-bold uppercase tracking-[.06em] text-[#64748b]">Local session</span>
               <Link href="/workspace/app" className="btn-primary !px-2 !py-1 !text-[10px]">Workspace</Link>
-              <button type="button" onClick={() => void signOut({ redirectUrl: basePath || '/' })} className="btn-secondary !px-2 !py-1 !text-[10px]">Sign out</button>
+              <button type="button" onClick={() => void signOut({ redirectUrl: `${window.location.origin}${basePath}/sign-in` })} className="btn-secondary !px-2 !py-1 !text-[10px]">Sign out</button>
             </div>
           </div>
 

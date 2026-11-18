@@ -13,7 +13,7 @@
 .ifrs-page .statusline { background: var(--amber); color: var(--amber-ink); text-align: center; font-size: 12px; letter-spacing: .025em; padding: 9px 18px; font-weight: 600; }
 .ifrs-page .header { height: 78px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(20,42,61,.12); }
 .ifrs-page .brand { text-decoration: none; display: flex; gap: 9px; align-items: center; font-weight: 800; font-size: 19px; letter-spacing: -.045em; }
-.ifrs-page .brandmark { width: 27px; height: 27px; background: var(--teal); color: #f4faf8; border-radius: 7px 7px 7px 2px; display: grid; place-items: center; font-size: 12px; letter-spacing: -.04em; }
+.ifrs-page .brandmark { width: 27px; height: 27px; object-fit: contain; border-radius: 7px; display: block; flex-shrink: 0; }
 .ifrs-page .brand em { color: var(--teal); font-style: normal; }
 .ifrs-page .nav { display: flex; gap: 30px; align-items: center; font-size: 13px; font-weight: 600; color: var(--muted); }
 .ifrs-page .nav a { text-decoration: none; transition: color .2s ease; }

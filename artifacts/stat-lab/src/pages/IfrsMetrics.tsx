@@ -165,9 +165,9 @@ export function IfrsMetrics() {
       <div className="statusline">IFRS Metrics is in development. The standards and workflow shown below are not yet available.</div>
       <div className="frame">
         <header className="header">
-          <a className="brand" href="#top" aria-label="IFRS Metrics home">
-            <span className="brandmark">IM</span><span>IFRS <em>Metrics</em></span>
-          </a>
+          <Link className="brand" href="/ifrs" aria-label="IFRS Metrics home">
+            <img className="brandmark" src={`${import.meta.env.BASE_URL}favicon.ico`} alt="" width={27} height={27} /><span>IFRS <em>Metrics</em></span>
+          </Link>
           <nav className="nav" aria-label="Main navigation">
             <Link href="/workspace/app" className="nav-cta">Workspace Lab</Link>
             <a href="#roadmap">Standards</a>

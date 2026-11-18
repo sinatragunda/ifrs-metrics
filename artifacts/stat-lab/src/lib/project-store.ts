@@ -2,7 +2,6 @@ import {
   DEFAULT_WORKSPACE,
   DEFAULT_WORKSPACE_ID,
   isProjectStandard,
-  type Project,
   type ProjectStandard,
   type ProjectStore,
   type WorkspaceRecord,
