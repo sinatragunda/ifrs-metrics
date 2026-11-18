@@ -85,8 +85,6 @@ export class HttpService {
 
     if (auth && this.tokenGetter && !headers.has('Authorization')) {
       const token = await this.tokenGetter();
-      console.log("token:", token);
-
       if (token) headers.set('Authorization', `Bearer ${token}`);
     }
 

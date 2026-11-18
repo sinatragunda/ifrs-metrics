@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { ChevronLeft, ChevronRight, ShoppingCart, UserRound } from "lucide-react";
 import { useMarketplaceCart } from "@/marketplace";
-import "./LoansDepositsLanding.css";
+import "@/assets/styles/loans-deposits/LoansDepositsLanding.css";
 
 function Arrow() {
   return (

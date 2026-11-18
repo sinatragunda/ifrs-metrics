@@ -6,7 +6,7 @@ import { useSessionUser } from '@/auth/session';
 import { UserAccountMenu } from '@/components/UserAccountMenu';
 import { catalog, columnLetter, demo, fmt, mean, numericFields, nums, toDataset, toDatasetFromMatrix, twoSidedTPValue, variance } from '@/lib/dataset';
 import { visibleProjectsInWorkspace, visibleWorkspaces } from '@/lib/project-access';
-import { readProjectStore } from '@/lib/project-store';
+import {readProjectStore, readProjectStoreAsync} from '@/lib/project-store';
 import { DEFAULT_WORKSPACE_ID, projectStandardLabels, type ChatMessage, type Dataset, type Project, type ProjectFile, type ProjectStandard, type ProjectStore, type Saved } from '@/lib/workspace-types';
 import { WorkspaceHomeSection } from '@/pages/WorkspaceHome';
 
@@ -69,6 +69,23 @@ export function Workspace() {
     setPendingImport(null);
     setError('');
   };
+
+    useEffect(() => {
+        let cancelled = false;
+
+        readProjectStoreAsync(projectStore)
+            .then((next) => {
+                alert("is canceled "+cancelled);
+                if (!cancelled) {
+                    alert('lets set values '+JSON.stringify(next));
+                    setProjectStore(next);
+                    alert(JSON.stringify(projectStore, null, 2));
+                };
+            })
+            .catch((err) => console.error('workspace load failed, keeping local', err));
+
+        return () => { cancelled = true; };
+    }, []);   // once on mount
 
   useEffect(() => {
     if (!projectManagerOpen && !pendingImport) return;

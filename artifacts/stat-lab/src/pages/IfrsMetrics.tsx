@@ -13,7 +13,7 @@ import {
   type LeaseInputs,
 } from "./lease-schedule";
 import { PricingOptions } from "./PricingOptions";
-import "./IfrsMetrics.css";
+import "@/assets/styles/ifrs-metrics/IfrsMetrics.css";
 
 const standards = [
   {
