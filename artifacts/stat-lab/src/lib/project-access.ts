@@ -1,10 +1,15 @@
 import type { Project, WorkspaceRecord } from '@/lib/workspace-types';
+import {httpService} from "@/lib/http-service.ts";
+
+
 
 export type PendingInvite = {
   id: string;
   email: string;
   workspaceId: string;
-  projectIds: string[];
+  projectIds?: string[];
+  roleId?: string | null;
+  roleName?: string | null;
   invitedAt: string;
 };
 
@@ -12,6 +17,9 @@ export type SessionUserLike = {
   id: string;
   primaryEmailAddress?: { emailAddress: string } | null;
 } | null | undefined;
+
+
+const invitationApiUrl = String(import.meta.env.VITE_INVITATION_API_URL ?? '');
 
 export const INVITES_STORAGE_KEY = 'statlab-workspace-invites-v1';
 
@@ -26,8 +34,20 @@ export function readPendingInvites(): PendingInvite[] {
   }
 }
 
-export function writePendingInvites(invites: PendingInvite[]) {
-  localStorage.setItem(INVITES_STORAGE_KEY, JSON.stringify(invites));
+export function sendPendingInvites(invites: PendingInvite[]) {
+    alert('send invites '+JSON.stringify(invites));
+    const callback = (res : any)=>{
+        alert(JSON.stringify(res))
+    };
+
+    const error =  (e : any)=>{
+        alert(JSON.stringify(e));
+    }
+
+    alert(invitationApiUrl);
+
+    httpService.post(invitationApiUrl, JSON.stringify(invites)).then(callback ,error);
+
 }
 
 export function collaboratorsForProject(projectId: string): { email: string; invitedAt: string; inviteIds: string[] }[] {
@@ -54,7 +74,7 @@ export function addProjectCollaborator(projectId: string, workspaceId: string, e
   if (existing) {
     if (!existing.projectIds.includes(projectId)) {
       existing.projectIds = [...existing.projectIds, projectId];
-      writePendingInvites(invites);
+      sendPendingInvites(invites);
     }
     return existing;
   }
@@ -65,12 +85,14 @@ export function addProjectCollaborator(projectId: string, workspaceId: string, e
     projectIds: [projectId],
     invitedAt: new Date().toISOString(),
   };
-  writePendingInvites([...invites, invite]);
+  sendPendingInvites([...invites, invite]);
   return invite;
 }
 
 export function removeProjectCollaborator(projectId: string, email: string) {
-  const normalized = normalizeEmail(email);
+
+    alert('whose calling this ');
+    const normalized = normalizeEmail(email);
   const next: PendingInvite[] = [];
   for (const invite of readPendingInvites()) {
     if (invite.email !== normalized || !invite.projectIds.includes(projectId)) {
@@ -80,7 +102,7 @@ export function removeProjectCollaborator(projectId: string, email: string) {
     const projectIds = invite.projectIds.filter((id) => id !== projectId);
     if (projectIds.length > 0) next.push({ ...invite, projectIds });
   }
-  writePendingInvites(next);
+  sendPendingInvites(next);
 }
 
 function normalizeEmail(email: string | null | undefined) {
@@ -130,7 +152,7 @@ export function visibleWorkspaces(workspaces: WorkspaceRecord[], user: SessionUs
 
 export function visibleProjectsInWorkspace(
   projects: Project[],
-  workspaceId: string,
+  workspaceId:any,
   user: SessionUserLike,
 ): Project[] {
   return projects.filter(

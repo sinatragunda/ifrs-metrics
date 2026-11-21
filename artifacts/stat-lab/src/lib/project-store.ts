@@ -6,7 +6,7 @@ import {
   type ProjectStore,
   type WorkspaceRecord,
 } from '@/lib/workspace-types';
-import {httpService} from "@/lib/http-service.ts";
+import { httpService } from '@/lib/http-service';
 
 export function readProjectStore(): ProjectStore {
   try {
@@ -33,56 +33,45 @@ export function readProjectStore(): ProjectStore {
 }
 
 export async function readProjectStoreAsync(
-    local: ProjectStore = readProjectStore()   // sync cache as the base
+  local: ProjectStore = readProjectStore(),
 ): Promise<ProjectStore> {
+  const res = await httpService.get('workspace/');
+  const raw = Array.isArray(res) ? res : [];
 
-    const res = await httpService.get('workspace/');
+  const workspaces: WorkspaceRecord[] = raw
+    .map((item) => {
+      const record = item as Record<string, unknown>;
+      return {
+        id: String(record.workspace_id ?? record.id ?? ''),
+        name: String(record.name ?? ''),
+        createdAt: String(record.created_at ?? record.createdAt ?? new Date().toISOString()),
+        ownerId: (record.user_id ?? record.ownerId ?? null) as string | null,
+      } satisfies WorkspaceRecord;
+    })
+    .filter((item): item is WorkspaceRecord => Boolean(item.id && item.name));
 
-    const raw = Array.isArray(res) ? res : [];
+  if (!workspaces.some((workspace) => workspace.id === DEFAULT_WORKSPACE_ID)) {
+    workspaces.unshift(DEFAULT_WORKSPACE);
+  }
 
-    alert("raw shit" + JSON.stringify(raw));
+  const activeWorkspaceId = workspaces.some((workspace) => workspace.id === local.activeWorkspaceId)
+    ? local.activeWorkspaceId
+    : DEFAULT_WORKSPACE_ID;
 
-    const workspaces: WorkspaceRecord[] = raw.map(f=>{
-        const rec : WorkspaceRecord = {
-            id : f.workspace_id,
-            name : f.name,
-            createdAt : f.created_at,
-            ownerId: f.user_id
-        };
-        return rec;
-    }).filter(
-        (item: any): item is WorkspaceRecord =>
-            Boolean(item && typeof item.id === 'string' && typeof item.name === 'string')
-    );
+  const projects = local.projects.map((project) => ({
+    ...project,
+    standard: isProjectStandard(project.standard) ? project.standard : ('general' as ProjectStandard),
+    workspaceId: workspaces.some((workspace) => workspace.id === project.workspaceId)
+      ? project.workspaceId
+      : DEFAULT_WORKSPACE_ID,
+    files: Array.isArray(project.files) ? project.files : [],
+  }));
 
-    alert(JSON.stringify(workspaces));
-
-    if (!workspaces.some((w) => w.id === DEFAULT_WORKSPACE_ID)) {
-        workspaces.unshift(DEFAULT_WORKSPACE);
-    }
-
-    const activeWorkspaceId = workspaces.some((w) => w.id === local.activeWorkspaceId)
-        ? local.activeWorkspaceId
-        : DEFAULT_WORKSPACE_ID;
-
-    const projects = local.projects.map((project) => ({
-        ...project,
-        standard: isProjectStandard(project.standard) ? project.standard : ('general' as ProjectStandard),
-        workspaceId: workspaces.some((w) => w.id === project.workspaceId)
-            ? project.workspaceId
-            : DEFAULT_WORKSPACE_ID,
-        files: Array.isArray(project.files) ? project.files : [],
-    }));
-
-    alert("lets return shit nopw "+JSON.stringify(workspaces, null, 2));
-
-    return {
-        projects,
-        activeProjectId: local.activeProjectId ?? null,
-        activeFileId: local.activeFileId ?? null,
-        workspaces,
-        activeWorkspaceId,
-    };
+  return {
+    projects,
+    activeProjectId: local.activeProjectId ?? null,
+    activeFileId: local.activeFileId ?? null,
+    workspaces,
+    activeWorkspaceId,
+  };
 }
-
-

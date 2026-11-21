@@ -38,15 +38,16 @@ export type Project = {
     standard: ProjectStandard;
     createdAt: string;
     workspaceId?: string;
-    ownerId?: string | null;
+    ownerId?: string;
     ownerName?: string;
     files: ProjectFile[];
 };
 
 export type WorkspaceRecord = {
-    id: string;
+    id?: string;
     name: string;
-    createdAt: string;
+    workspaceId?: string
+    createdAt?: string;
     isDefault?: boolean;
     ownerId?: string | null;
 };
@@ -56,7 +57,7 @@ export type ProjectStore = {
     activeProjectId: string | null;
     activeFileId: string | null;
     workspaces: WorkspaceRecord[];
-    activeWorkspaceId: string;
+    activeWorkspaceId: string | undefined;
 };
 
 export type CheckoutDraft = {

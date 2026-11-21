@@ -40,7 +40,7 @@ export function ClerkRoutes() {
     appearance={clerkAppearance}
     signInUrl={`${basePath}/sign-in`}
     signUpUrl={`${basePath}/sign-up`}
-    localization={{signIn:{start:{title:'Welcome back',subtitle:'Sign in to access your IFRS Metrics Workspace'}},signUp:{start:{title:'Create your account',subtitle:'Save and track your IFRS Lab projects'}}}}
+    localization={{signIn:{start:{title:'Welcome back',subtitle:'Sign in to access your IFRS Metrics Workspace'}},signUp:{start:{title:'Create your account',subtitle:'Save and track your IFRS Metrics Workspace projects'}}}}
     routerPush={(to) => setLocation(stripBase(to))}
     routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
   >

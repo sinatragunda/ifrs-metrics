@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { ArrowRight, FileSpreadsheet, FolderOpen, FolderPlus, UserPlus, Users, X } from 'lucide-react';
 import { useSessionUser } from '@/auth/session';
 import {
@@ -8,12 +8,23 @@ import {
   removeProjectCollaborator,
   visibleProjectsInWorkspace,
   visibleWorkspaces,
-  writePendingInvites,
+  sendPendingInvites,
   type PendingInvite,
 } from '@/lib/project-access';
+import { fetchWorkspaceScopes, type WorkspaceScope } from '@/lib/workspace-template';
 import { DEFAULT_WORKSPACE, projectStandardLabels, type Project, type ProjectStore, type WorkspaceRecord } from '@/lib/workspace-types';
+import {httpService} from "@/lib/http-service.ts";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function parseInviteEmails(raw: string) {
+  return [...new Set(
+    raw
+      .split(/[\s,;]+/)
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  )];
+}
 
 export function latestProjectActivity(project: Project) {
   return project.files.reduce((latest, file) => file.importedAt > latest ? file.importedAt : latest, project.createdAt);
@@ -36,8 +47,13 @@ export function WorkspaceHomeSection({
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteEmailChips, setInviteEmailChips] = useState<string[]>([]);
+  const [inviteEmailDraft, setInviteEmailDraft] = useState('');
+  const inviteEmailInputRef = useRef<HTMLInputElement>(null);
   const [inviteProjectIds, setInviteProjectIds] = useState<string[]>([]);
+  const [inviteRoleId, setInviteRoleId] = useState('');
+  const [workspaceScopes, setWorkspaceScopes] = useState<WorkspaceScope[]>([]);
+  const [scopesLoading, setScopesLoading] = useState(false);
   const [inviteFeedback, setInviteFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
   const [collaboratorsProject, setCollaboratorsProject] = useState<Project | null>(null);
   const [collaboratorEmail, setCollaboratorEmail] = useState('');
@@ -64,24 +80,38 @@ export function WorkspaceHomeSection({
   };
 
   const createWorkspace = (event: FormEvent) => {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) return;
-    const created: WorkspaceRecord = {
-      id: `workspace-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      name,
-      createdAt: new Date().toISOString(),
-      ownerId: user?.id ?? null,
+
+      event.preventDefault();
+      const name = workspaceName.trim();
+      if (!name) return;
+
+      const created: WorkspaceRecord = {
+          workspaceId: `workspace-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          name,
+          ownerId: user?.id ?? null,
+      };
+
+        const callback = (res: any)=> {
+
+        alert(JSON.stringify(res));
+
+        onProjectStoreChange({
+            ...projectStore,
+            workspaces: [...projectStore.workspaces, created],
+            activeWorkspaceId: created.id,
+            activeProjectId: null,
+            activeFileId: null,
+        });
+        setWorkspaceName('');
+        setShowCreateWorkspace(false);
     };
-    onProjectStoreChange({
-      ...projectStore,
-      workspaces: [...projectStore.workspaces, created],
-      activeWorkspaceId: created.id,
-      activeProjectId: null,
-      activeFileId: null,
-    });
-    setWorkspaceName('');
-    setShowCreateWorkspace(false);
+
+        const error = (res : any)=>{
+            alert('Error '+JSON.stringify(res));
+        };
+
+        httpService.post("workspace/",created, {}).then(callback ,error);
+
   };
 
   const toggleInvitePanel = () => {
@@ -95,6 +125,24 @@ export function WorkspaceHomeSection({
     });
   };
 
+  useEffect(() => {
+    if (!showInvite || !user) return;
+    let cancelled = false;
+    setScopesLoading(true);
+    fetchWorkspaceScopes()
+      .then((scopes) => {
+        if (cancelled) return;
+        setWorkspaceScopes(scopes);
+        setInviteRoleId((current) => current || scopes[0]?.id || '');
+      })
+      .finally(() => {
+        if (!cancelled) setScopesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showInvite, user]);
+
   const toggleInviteProject = (projectId: string) => {
     setInviteProjectIds((current) =>
       current.includes(projectId) ? current.filter((id) => id !== projectId) : [...current, projectId],
@@ -106,6 +154,60 @@ export function WorkspaceHomeSection({
   };
 
   const bumpInvites = () => setInviteRevision((value) => value + 1);
+
+  const commitInviteEmails = (raw: string) => {
+    const candidates = parseInviteEmails(raw);
+    if (!candidates.length) return false;
+
+    const invalid = candidates.filter((email) => !EMAIL_PATTERN.test(email));
+    if (invalid.length) {
+      setInviteFeedback({
+        kind: 'error',
+        message: `Enter a full email before adding${invalid.length === 1 ? '' : ' these'}: ${invalid.join(', ')}`,
+      });
+      return false;
+    }
+
+    setInviteEmailChips((current) => {
+      const next = [...current];
+      for (const email of candidates) {
+        if (!next.includes(email)) next.push(email);
+      }
+      return next;
+    });
+    setInviteFeedback(null);
+    setInviteEmailDraft('');
+    return true;
+  };
+
+  const removeInviteEmail = (email: string) => {
+    setInviteEmailChips((current) => current.filter((item) => item !== email));
+  };
+
+  const handleInviteEmailKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' || event.key === ',' || event.key === ' ' || event.key === 'Tab') {
+      const draft = inviteEmailDraft.trim();
+      if (!draft) {
+        if (event.key === 'Enter') event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      commitInviteEmails(draft);
+      return;
+    }
+
+    if (event.key === 'Backspace' && !inviteEmailDraft && inviteEmailChips.length) {
+      event.preventDefault();
+      setInviteEmailChips((current) => current.slice(0, -1));
+    }
+  };
+
+  const handleInviteEmailPaste = (event: ClipboardEvent<HTMLInputElement>) => {
+    const text = event.clipboardData.getData('text');
+    if (!/[,\s;]/.test(text) && !text.includes('@')) return;
+    event.preventDefault();
+    commitInviteEmails(`${inviteEmailDraft} ${text}`);
+  };
 
   const closeCollaborators = () => {
     setCollaboratorsProject(null);
@@ -124,29 +226,50 @@ export function WorkspaceHomeSection({
 
   const sendInvite = (event: FormEvent) => {
     event.preventDefault();
-    const email = inviteEmail.trim().toLowerCase();
-    if (!EMAIL_PATTERN.test(email)) {
-      setInviteFeedback({ kind: 'error', message: 'Enter a valid email address.' });
+    let emails = inviteEmailChips;
+    const draft = inviteEmailDraft.trim();
+    if (draft) {
+      if (!EMAIL_PATTERN.test(draft.toLowerCase())) {
+        setInviteFeedback({ kind: 'error', message: 'Finish the current email or remove it before sending.' });
+        return;
+      }
+      const normalized = draft.toLowerCase();
+      emails = emails.includes(normalized) ? emails : [...emails, normalized];
+      setInviteEmailChips(emails);
+      setInviteEmailDraft('');
+    }
+    if (!emails.length) {
+      setInviteFeedback({ kind: 'error', message: 'Enter at least one email address.' });
       return;
     }
-    const invite: PendingInvite = {
-      id: `invite-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    if (!inviteRoleId) {
+      setInviteFeedback({ kind: 'error', message: 'Select a workspace role.' });
+      return;
+    }
+    const selectedRole = workspaceScopes.find((scope) => scope.id === inviteRoleId) ?? null;
+    const invitedAt = new Date().toISOString();
+    const invites: PendingInvite[] = emails.map((email, index) => ({
+      id: `invite-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
       email,
       workspaceId: activeWorkspace.id,
       projectIds: inviteProjectIds,
-      invitedAt: new Date().toISOString(),
-    };
+      roleId: selectedRole?.id ?? inviteRoleId,
+      roleName: selectedRole?.name ?? inviteRoleId,
+      invitedAt,
+    }));
     try {
-      writePendingInvites([...readPendingInvites(), invite]);
+      sendPendingInvites([...invites]);
       bumpInvites();
+      const people = emails.length === 1 ? emails[0] : `${emails.length} people`;
       const count = inviteProjectIds.length;
       setInviteFeedback({
         kind: 'success',
         message: count
-          ? `Invite saved for ${email} · ${activeWorkspace.name} · ${count} ${count === 1 ? 'project' : 'projects'}.`
-          : `Invite saved for ${email} · workspace access to ${activeWorkspace.name}.`,
+          ? `Invite saved for ${people} · ${selectedRole?.name ?? 'role'} · ${activeWorkspace.name} · ${count} ${count === 1 ? 'project' : 'projects'}.`
+          : `Invite saved for ${people} · ${selectedRole?.name ?? 'role'} · workspace access to ${activeWorkspace.name}.`,
       });
-      setInviteEmail('');
+      setInviteEmailChips([]);
+      setInviteEmailDraft('');
       setInviteProjectIds([]);
     } catch {
       setInviteFeedback({ kind: 'error', message: 'Could not save the invite in this browser.' });
@@ -256,17 +379,91 @@ export function WorkspaceHomeSection({
         {user && showInvite && (
           <form onSubmit={sendInvite} className="mt-4 space-y-3 rounded-xl bg-[#f4f8f8] p-3">
             <div>
-              <label htmlFor="invite-email" className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">Invite by email</label>
-              <input
-                id="invite-email"
-                autoFocus
-                type="email"
-                value={inviteEmail}
-                onChange={(event) => setInviteEmail(event.target.value)}
-                placeholder="colleague@company.com"
-                className="w-full min-w-[220px] rounded-lg border border-[#d2dfe3] bg-white px-3 py-2 text-sm"
-              />
+              <label htmlFor="invite-emails" className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">
+                Invite people by email
+              </label>
+              <div
+                className="flex min-h-[44px] w-full cursor-text flex-wrap items-center gap-1.5 rounded-lg border border-[#d2dfe3] bg-white px-2.5 py-2"
+                onClick={() => inviteEmailInputRef.current?.focus()}
+              >
+                {inviteEmailChips.map((email) => (
+                  <span
+                    key={email}
+                    className="inline-flex max-w-full items-center gap-1 rounded-md border border-[#9bbeb7] bg-[#dcece8] px-2 py-1 text-[12px] font-medium text-[#095e55]"
+                  >
+                    <span className="min-w-0 truncate">{email}</span>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${email}`}
+                      title={`Remove ${email}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        removeInviteEmail(email);
+                      }}
+                      className="grid h-4 w-4 shrink-0 place-items-center rounded-sm text-[#095e55] hover:bg-[#c5ddd7]"
+                    >
+                      <X size={11} strokeWidth={2.5} />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  id="invite-emails"
+                  ref={inviteEmailInputRef}
+                  autoFocus
+                  type="text"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={inviteEmailDraft}
+                  onChange={(event) => setInviteEmailDraft(event.target.value)}
+                  onKeyDown={handleInviteEmailKeyDown}
+                  onPaste={handleInviteEmailPaste}
+                  onBlur={() => {
+                    if (inviteEmailDraft.trim()) commitInviteEmails(inviteEmailDraft);
+                  }}
+                  placeholder={inviteEmailChips.length ? 'Add another email' : 'colleague@company.com'}
+                  className="min-w-[140px] flex-1 border-0 bg-transparent px-1 py-0.5 text-sm outline-none placeholder:text-[#94a3b8]"
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-[#64748b]">Press Enter, comma, or space after a full email to add it.</p>
             </div>
+
+            <div>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">Workspace role</p>
+              {scopesLoading ? (
+                <p className="rounded-lg border border-dashed border-[#d2dfe3] bg-white px-3 py-3 text-sm text-[#64748b]">Loading roles…</p>
+              ) : !workspaceScopes.length ? (
+                <p className="rounded-lg border border-dashed border-[#d2dfe3] bg-white px-3 py-3 text-sm text-[#64748b]">No roles available.</p>
+              ) : (
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-[#d2dfe3] bg-white p-2" role="radiogroup" aria-label="Workspace role">
+                  {workspaceScopes.map((scope) => {
+                    const selected = inviteRoleId === scope.id;
+                    return (
+                      <label
+                        key={scope.id}
+                        className={`flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-2 text-sm transition-colors ${
+                          selected ? 'bg-[#dcece8]/70' : 'hover:bg-[#f4f8f8]'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="workspace-invite-role"
+                          checked={selected}
+                          onChange={() => setInviteRoleId(scope.id)}
+                          className="mt-0.5 accent-[#0e786b]"
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold text-[#142a3d]">{scope.name}</span>
+                          {scope.description && (
+                            <span className="block text-[11px] text-[#64748b]">{scope.description}</span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#64748b]">
@@ -275,7 +472,7 @@ export function WorkspaceHomeSection({
                 <button
                   type="button"
                   onClick={toggleSelectAllProjects}
-                  disabled={!projects.length}
+                  disabled={!ownedProjects.length}
                   className="text-[11px] font-semibold text-[#147b69] hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
                 >
                   {allProjectsSelected ? 'Clear all' : 'Select all'}
@@ -321,14 +518,19 @@ export function WorkspaceHomeSection({
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <button type="submit" disabled={!inviteEmail.trim()} className="btn-primary disabled:opacity-50">
-                Send invite
+              <button
+                type="submit"
+                disabled={(!inviteEmailChips.length && !inviteEmailDraft.trim()) || !inviteRoleId || scopesLoading}
+                className="btn-primary disabled:opacity-50"
+              >
+                Send invite{(inviteEmailChips.length + (inviteEmailDraft.trim() ? 1 : 0)) > 1 ? 's' : ''}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   setShowInvite(false);
-                  setInviteEmail('');
+                  setInviteEmailChips([]);
+                  setInviteEmailDraft('');
                   setInviteProjectIds([]);
                   setInviteFeedback(null);
                 }}
@@ -337,7 +539,7 @@ export function WorkspaceHomeSection({
                 Cancel
               </button>
             </div>
-            <p className="text-[11px] text-[#64748b]">Invites are stored in this browser for now. Email delivery is not sent yet.</p>
+            <p className="text-[11px] text-[#64748b]">Invites are stored in this browser for now. Roles load from `/workspace/template` when available.</p>
           </form>
         )}
       </div>

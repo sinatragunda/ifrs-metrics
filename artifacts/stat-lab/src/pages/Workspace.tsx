@@ -35,9 +35,13 @@ export function Workspace() {
     return { dataset: demo, results: [], messages: [] };
   });
   const { dataset, results, messages } = saved;
-  const [activeTab, setActiveTab] = useState<'lab' | 'data' | 'results'>(() =>
-    window.location.pathname.includes('/workspace/app') ? 'data' : 'lab',
-  );
+  const [activeTab, setActiveTab] = useState<'lab' | 'data' | 'results'>(() => {
+    const onAppRoute = window.location.pathname.includes('/workspace/app');
+    const store = readProjectStore();
+    // /workspace/app opens Data only when signed in with an active project
+    if (onAppRoute && user && store.activeProjectId) return 'data';
+    return 'lab';
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('ifrs-lab-sidebar-collapsed') === 'true'; }
     catch { return false; }
@@ -70,22 +74,26 @@ export function Workspace() {
     setError('');
   };
 
-    useEffect(() => {
-        let cancelled = false;
+  useEffect(() => {
+    let cancelled = false;
 
-        readProjectStoreAsync(projectStore)
-            .then((next) => {
-                alert("is canceled "+cancelled);
-                if (!cancelled) {
-                    alert('lets set values '+JSON.stringify(next));
-                    setProjectStore(next);
-                    alert(JSON.stringify(projectStore, null, 2));
-                };
-            })
-            .catch((err) => console.error('workspace load failed, keeping local', err));
+    readProjectStoreAsync(projectStore)
+      .then((next) => {
+        if (cancelled) return;
+        setProjectStore(next);
+        const onAppRoute = window.location.pathname.includes('/workspace/app');
+        if (!user || !next.activeProjectId) setActiveTab('lab');
+        else if (onAppRoute) setActiveTab('data');
+      })
+      .catch((err) => {
+        console.error('workspace load failed, keeping local', err);
+        if (!cancelled && (!user || !projectStore.activeProjectId)) setActiveTab('lab');
+      });
 
-        return () => { cancelled = true; };
-    }, []);   // once on mount
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!projectManagerOpen && !pendingImport) return;
@@ -467,8 +475,8 @@ export function Workspace() {
       </div>}
 
       <div className={`mt-auto rounded-[4px] border border-[#d8dde4] bg-white ${sidebarCollapsed ? 'mx-auto p-2' : 'p-2.5'}`} title={sidebarCollapsed ? 'Your data stays in this browser' : undefined}>
-        <div className={`flex items-center text-[11px] font-semibold text-[#1f2328] ${sidebarCollapsed ? 'justify-center' : 'gap-2'}`}><Sparkles size={13} className="text-[#0078d4]"/>{!sidebarCollapsed && 'Local by design'}</div>
-        {!sidebarCollapsed && <p className="mt-1.5 text-[10px] leading-relaxed text-[#605e5c]">Your data stays in this browser. Nothing is uploaded to a server.</p>}
+        <div className={`flex items-center text-[11px] font-semibold text-[#1f2328] ${sidebarCollapsed ? 'justify-center' : 'gap-2'}`}><Sparkles size={13} className="text-[#0078d4]"/>{!sidebarCollapsed && 'Secured'}</div>
+        {!sidebarCollapsed && <p className="mt-1.5 text-[10px] leading-relaxed text-[#605e5c]">Your data is encrypted ,stays visible to you only.</p>}
       </div>
     </aside>
     <main className="min-w-0 flex-1">
