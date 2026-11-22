@@ -35,7 +35,7 @@ export function readPendingInvites(): PendingInvite[] {
 }
 
 export function sendPendingInvites(invites: PendingInvite[]) {
-    alert('send invites '+JSON.stringify(invites));
+
     const callback = (res : any)=>{
         alert(JSON.stringify(res))
     };
@@ -44,9 +44,7 @@ export function sendPendingInvites(invites: PendingInvite[]) {
         alert(JSON.stringify(e));
     }
 
-    alert(invitationApiUrl);
-
-    httpService.post(invitationApiUrl, JSON.stringify(invites)).then(callback ,error);
+    httpService.post(invitationApiUrl, invites).then(callback ,error);
 
 }
 

@@ -9,6 +9,7 @@ import { basePath, clerkAppearance, clerkProxyUrl, clerkPubKey } from '@/auth/cl
 import { SessionUserContext } from '@/auth/session';
 import { AccountBillingRoute, AccountRoute } from '@/pages/AccountPages';
 import { CheckoutReviewPage } from '@/pages/CheckoutReviewPage';
+import { ConfirmInvitationPage } from '@/pages/ConfirmInvitation';
 import { WorkspaceAppRoute } from '@/pages/Workspace';
 
 export function LocalRoutes() {
@@ -20,6 +21,7 @@ export function LocalRoutes() {
         <Route path="/loans-deposits/marketplace" component={MarketplacePage}/>
         <Route path="/loans-deposits" component={LoansDepositsLanding}/>
         <Route path="/workspace/*?" component={WorkspaceAppRoute}/>
+        <Route path="/confirm_invitation" component={ConfirmInvitationPage}/>
         <Route path="/account/billing" component={ClerkSetupPage}/>
         <Route path="/account" component={ClerkSetupPage}/>
         <Route path="/checkout" component={ClerkSetupPage}/>
@@ -51,6 +53,7 @@ export function ClerkRoutes() {
         <Route path="/loans-deposits/marketplace" component={MarketplacePage}/>
         <Route path="/loans-deposits" component={LoansDepositsLanding}/>
         <Route path="/workspace/*?" component={WorkspaceAppRoute}/>
+        <Route path="/confirm_invitation" component={ConfirmInvitationPage}/>
         <Route path="/account/billing" component={AccountBillingRoute}/>
         <Route path="/account" component={AccountRoute}/>
         <Route path="/checkout" component={CheckoutReviewPage}/>

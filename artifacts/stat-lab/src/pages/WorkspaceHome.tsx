@@ -4,16 +4,24 @@ import { useSessionUser } from '@/auth/session';
 import {
   addProjectCollaborator,
   collaboratorsForProject,
-  readPendingInvites,
   removeProjectCollaborator,
   visibleProjectsInWorkspace,
   visibleWorkspaces,
   sendPendingInvites,
   type PendingInvite,
 } from '@/lib/project-access';
+import { httpService } from '@/lib/http-service';
+import {
+  fetchWorkspaceMembers,
+  revokeWorkspaceMember,
+  type WorkspaceMember,
+} from '@/lib/workspace-members';
 import { fetchWorkspaceScopes, type WorkspaceScope } from '@/lib/workspace-template';
 import { DEFAULT_WORKSPACE, projectStandardLabels, type Project, type ProjectStore, type WorkspaceRecord } from '@/lib/workspace-types';
-import {httpService} from "@/lib/http-service.ts";
+
+function workspaceKey(workspace: WorkspaceRecord) {
+  return workspace.id || workspace.workspaceId || '';
+}
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -59,9 +67,16 @@ export function WorkspaceHomeSection({
   const [collaboratorEmail, setCollaboratorEmail] = useState('');
   const [collaboratorFeedback, setCollaboratorFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
   const [inviteRevision, setInviteRevision] = useState(0);
+  const [showMembers, setShowMembers] = useState(false);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [membersSearch, setMembersSearch] = useState('');
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const [revokingMemberId, setRevokingMemberId] = useState<string | null>(null);
 
   const workspaces = visibleWorkspaces(projectStore.workspaces, user);
-  const activeWorkspace = workspaces.find((workspace) => workspace.id === projectStore.activeWorkspaceId) ?? DEFAULT_WORKSPACE;
+  const activeWorkspace = workspaces.find((workspace) => workspaceKey(workspace) === projectStore.activeWorkspaceId) ?? DEFAULT_WORKSPACE;
+  const activeWorkspaceId = workspaceKey(activeWorkspace);
   const projects = visibleProjectsInWorkspace(projectStore.projects, activeWorkspace.id, user)
     .sort((a, b) => latestProjectActivity(b).localeCompare(latestProjectActivity(a)));
   const ownedProjects = projects.filter((project) => (user ? project.ownerId === user.id : !project.ownerId));
@@ -77,6 +92,53 @@ export function WorkspaceHomeSection({
     });
     setInviteProjectIds([]);
     setInviteFeedback(null);
+    setShowMembers(false);
+    setMembers([]);
+    setMembersSearch('');
+    setMembersError(null);
+  };
+
+  const filteredMembers = members.filter((member) => {
+    const query = membersSearch.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      member.username.toLowerCase().includes(query)
+      || member.scope.toLowerCase().includes(query)
+      || (member.email?.toLowerCase().includes(query) ?? false)
+    );
+  });
+
+  const loadMembers = async (workspaceId: string) => {
+    if (!workspaceId || workspaceId === DEFAULT_WORKSPACE.id) {
+      setMembers([]);
+      setMembersError(null);
+      setMembersLoading(false);
+      return;
+    }
+    setMembersLoading(true);
+    setMembersError(null);
+    try {
+      const next = await fetchWorkspaceMembers(workspaceId);
+      setMembers(next);
+    } catch (error) {
+      setMembers([]);
+      setMembersError(error instanceof Error ? error.message : 'Could not load members.');
+    } finally {
+      setMembersLoading(false);
+    }
+  };
+
+  const revokeMember = async (member: WorkspaceMember) => {
+    if (!activeWorkspaceId || revokingMemberId) return;
+    setRevokingMemberId(member.id);
+    try {
+      await revokeWorkspaceMember(activeWorkspaceId, member.id);
+      setMembers((current) => current.filter((item) => item.id !== member.id));
+    } catch (error) {
+      setMembersError(error instanceof Error ? error.message : 'Could not revoke access.');
+    } finally {
+      setRevokingMemberId(null);
+    }
   };
 
   const createWorkspace = (event: FormEvent) => {
@@ -119,6 +181,7 @@ export function WorkspaceHomeSection({
       const next = !open;
       if (next) {
         setShowCreateWorkspace(false);
+        setShowMembers(false);
         setInviteFeedback(null);
       }
       return next;
@@ -249,25 +312,19 @@ export function WorkspaceHomeSection({
     const selectedRole = workspaceScopes.find((scope) => scope.id === inviteRoleId) ?? null;
     const invitedAt = new Date().toISOString();
     const invites: PendingInvite[] = emails.map((email, index) => ({
-      id: `invite-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+      inviteId: `invite-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
       email,
       workspaceId: activeWorkspace.id,
       projectIds: inviteProjectIds,
       roleId: selectedRole?.id ?? inviteRoleId,
       roleName: selectedRole?.name ?? inviteRoleId,
-      invitedAt,
     }));
     try {
       sendPendingInvites([...invites]);
       bumpInvites();
       const people = emails.length === 1 ? emails[0] : `${emails.length} people`;
       const count = inviteProjectIds.length;
-      setInviteFeedback({
-        kind: 'success',
-        message: count
-          ? `Invite saved for ${people} · ${selectedRole?.name ?? 'role'} · ${activeWorkspace.name} · ${count} ${count === 1 ? 'project' : 'projects'}.`
-          : `Invite saved for ${people} · ${selectedRole?.name ?? 'role'} · workspace access to ${activeWorkspace.name}.`,
-      });
+
       setInviteEmailChips([]);
       setInviteEmailDraft('');
       setInviteProjectIds([]);
@@ -327,15 +384,18 @@ export function WorkspaceHomeSection({
             <div className="flex flex-wrap items-center gap-2">
               <select
                 id="workspace-picker"
-                value={activeWorkspace.id}
+                value={activeWorkspaceId}
                 onChange={(event) => chooseWorkspace(event.target.value)}
                 className="min-w-[220px] rounded-none border border-[#d2dfe3] bg-[#f8faf9] px-3 py-2.5 text-sm font-semibold"
               >
-                {workspaces.map((workspace) => (
-                  <option key={workspace.id} value={workspace.id}>
-                    {workspace.name}{workspace.isDefault ? ' · Default' : ''}
-                  </option>
-                ))}
+                {workspaces.map((workspace) => {
+                  const id = workspaceKey(workspace);
+                  return (
+                    <option key={id} value={id}>
+                      {workspace.name}{workspace.isDefault ? ' · Default' : ''}
+                    </option>
+                  );
+                })}
               </select>
               {activeWorkspace.isDefault && (
                 <span className="rounded-full bg-[#dcece8] px-2.5 py-1 text-[10px] font-semibold text-[#095e55]">Default workspace</span>
@@ -343,6 +403,28 @@ export function WorkspaceHomeSection({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {user && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowInvite(false);
+                  setShowCreateWorkspace(false);
+                  setShowMembers((open) => {
+                    const next = !open;
+                    if (next) void loadMembers(activeWorkspaceId);
+                    else {
+                      setMembers([]);
+                      setMembersSearch('');
+                      setMembersError(null);
+                    }
+                    return next;
+                  });
+                }}
+                className="btn-ghost"
+              >
+                <Users size={16}/> Members
+              </button>
+            )}
             {user && (
               <button type="button" onClick={toggleInvitePanel} className="btn-ghost">
                 <UserPlus size={16}/> Invite
@@ -353,6 +435,7 @@ export function WorkspaceHomeSection({
               onClick={() => {
                 setShowCreateWorkspace((value) => !value);
                 setShowInvite(false);
+                setShowMembers(false);
               }}
               className="btn-ghost"
             >
@@ -360,6 +443,77 @@ export function WorkspaceHomeSection({
             </button>
           </div>
         </div>
+
+        {user && showMembers && (
+          <div className="mt-4 rounded-xl border border-[#d2dfe3] bg-[#f8faf9] p-3">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#147b69]">Membership</p>
+                <h3 className="mt-0.5 text-sm font-bold text-[#142a3d]">
+                  People in {activeWorkspace.name}
+                </h3>
+              </div>
+              <button type="button" onClick={() => void loadMembers(activeWorkspaceId)} className="btn-secondary !px-2 !py-1 !text-[10px]" disabled={membersLoading}>
+                Refresh
+              </button>
+            </div>
+
+            <div className="mb-3">
+              <label htmlFor="members-search" className="sr-only">Search members</label>
+              <input
+                id="members-search"
+                type="search"
+                value={membersSearch}
+                onChange={(event) => setMembersSearch(event.target.value)}
+                placeholder="Search by username, email, or scope"
+                className="w-full rounded-lg border border-[#d2dfe3] bg-white px-3 py-2 text-sm"
+              />
+            </div>
+
+            {membersLoading ? (
+              <p className="px-1 py-3 text-sm text-[#64748b]" role="status">Loading members…</p>
+            ) : membersError ? (
+              <p className="px-1 py-3 text-sm text-[#922f27]" role="alert">{membersError}</p>
+            ) : !members.length ? (
+              <p className="px-1 py-3 text-sm text-[#64748b]">No members found for this workspace yet.</p>
+            ) : !filteredMembers.length ? (
+              <p className="px-1 py-3 text-sm text-[#64748b]">No members match “{membersSearch.trim()}”.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-[#d2dfe3] bg-white">
+                <table className="w-full min-w-[420px] text-left text-sm">
+                  <thead className="bg-[#f4f8f8] text-[10px] uppercase tracking-wide text-[#64748b]">
+                    <tr>
+                      <th className="px-3 py-2 font-bold">Username</th>
+                      <th className="px-3 py-2 font-bold">Access scope</th>
+                      <th className="px-3 py-2 font-bold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredMembers.map((member) => (
+                      <tr key={member.id} className="border-t border-[#e7edef]">
+                        <td className="px-3 py-2.5">
+                          <p className="font-semibold text-[#142a3d]">{member.username}</p>
+                          {member.email && <p className="text-[11px] text-[#64748b]">{member.email}</p>}
+                        </td>
+                        <td className="px-3 py-2.5 text-[#40596b]">{member.scope}</td>
+                        <td className="px-3 py-2.5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => void revokeMember(member)}
+                            disabled={revokingMemberId === member.id}
+                            className="rounded-md px-2 py-1 text-[11px] font-semibold text-[#922f27] hover:bg-[#fdecec] disabled:opacity-50"
+                          >
+                            {revokingMemberId === member.id ? 'Revoking…' : 'Revoke access'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {showCreateWorkspace && (
           <form onSubmit={createWorkspace} className="mt-4 flex flex-wrap gap-2 rounded-xl bg-[#f4f8f8] p-3">
