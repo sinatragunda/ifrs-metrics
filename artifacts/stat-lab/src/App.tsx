@@ -1,7 +1,7 @@
 import { Router as WouterRouter } from 'wouter';
 import { clerkEnabled, basePath } from '@/auth/clerk-config';
-import { HttpErrorBanner } from '@/components/HttpErrorBanner';
 import { HttpLoadingOverlay } from '@/components/HttpLoadingOverlay';
+import { StatusPopupHost } from '@/components/StatusPopupHost';
 import { MarketplaceCartProvider } from '@/marketplace';
 import { ClerkRoutes, LocalRoutes } from '@/routes';
 
@@ -9,7 +9,7 @@ function App() {
   return (
     <WouterRouter base={basePath}>
       <MarketplaceCartProvider>
-        <HttpErrorBanner />
+        <StatusPopupHost />
         <HttpLoadingOverlay />
         {clerkEnabled ? <ClerkRoutes/> : <LocalRoutes/>}
       </MarketplaceCartProvider>

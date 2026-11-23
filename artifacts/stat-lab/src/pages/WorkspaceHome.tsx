@@ -18,6 +18,7 @@ import {
 } from '@/lib/workspace-members';
 import { fetchWorkspaceScopes, type WorkspaceScope } from '@/lib/workspace-template';
 import { DEFAULT_WORKSPACE, projectStandardLabels, type Project, type ProjectStore, type WorkspaceRecord } from '@/lib/workspace-types';
+import {showSuccessPopup} from "@/lib/status-popup-store.ts";
 
 function workspaceKey(workspace: WorkspaceRecord) {
   return workspace.id || workspace.workspaceId || '';
@@ -312,7 +313,6 @@ export function WorkspaceHomeSection({
     const selectedRole = workspaceScopes.find((scope) => scope.id === inviteRoleId) ?? null;
     const invitedAt = new Date().toISOString();
     const invites: PendingInvite[] = emails.map((email, index) => ({
-      inviteId: `invite-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
       email,
       workspaceId: activeWorkspace.id,
       projectIds: inviteProjectIds,
@@ -320,14 +320,19 @@ export function WorkspaceHomeSection({
       roleName: selectedRole?.name ?? inviteRoleId,
     }));
     try {
-      sendPendingInvites([...invites]);
-      bumpInvites();
-      const people = emails.length === 1 ? emails[0] : `${emails.length} people`;
-      const count = inviteProjectIds.length;
+        const success_callback = ()=>{
+            showSuccessPopup('Invites were sent successfully.');
+            bumpInvites();
+            const people = emails.length === 1 ? emails[0] : `${emails.length} people`;
+            const count = inviteProjectIds.length;
 
-      setInviteEmailChips([]);
-      setInviteEmailDraft('');
-      setInviteProjectIds([]);
+            setInviteEmailChips([]);
+            setInviteEmailDraft('');
+            setInviteProjectIds([]);
+        };
+
+        sendPendingInvites(success_callback, [...invites]);
+
     } catch {
       setInviteFeedback({ kind: 'error', message: 'Could not save the invite in this browser.' });
     }

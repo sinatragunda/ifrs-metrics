@@ -1,11 +1,12 @@
 import { useEffect, type ReactNode } from 'react';
-import { SignIn, SignUp, useAuth, useUser } from '@clerk/react';
+import { SignIn, SignUp, useAuth, useClerk, useUser } from '@clerk/react';
 import { Show } from '@clerk/react';
-import { Link, Redirect } from 'wouter';
+import { Link, Redirect, useSearch } from 'wouter';
 import IfrsMetrics from '@/pages/IfrsMetrics';
 import { basePath } from '@/auth/clerk-config';
 import { SessionUserContext, type SessionUser } from '@/auth/session';
 import { httpService } from '@/lib/http-service';
+import { readInvitationMember } from '@/lib/workspace-members';
 
 export function HomeRedirect() {
   return <><Show when="signed-in"><Redirect to="/workspace"/></Show><Show when="signed-out"><IfrsMetrics/></Show></>;
@@ -23,8 +24,52 @@ export function SignInPage() {
 }
 
 export function SignUpPage() {
+  const search = useSearch();
+  const { isLoaded, isSignedIn } = useAuth();
+  const { signOut } = useClerk();
   const redirect = authRedirectUrl();
-  return <div className="flex min-h-[100dvh] items-center justify-center bg-[#eef4f6] px-4"><SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} forceRedirectUrl={redirect} signInForceRedirectUrl={redirect}/></div>;
+  const params = new URLSearchParams(search);
+  const fromInvitation = params.get('fromInvitation') === '1';
+  const invitation = readInvitationMember();
+  const emailFromQuery = params.get('email')?.trim() || '';
+  const emailAddress = invitation?.email || emailFromQuery || undefined;
+
+  useEffect(() => {
+    if (!isLoaded || !fromInvitation || !isSignedIn) return;
+    // Clerk refuses to render <SignUp /> while signed in and sends users to Home (/workspace).
+    // Invitation accept needs a fresh sign-up for the invited email.
+    const next = new URLSearchParams({ fromInvitation: '1' });
+    if (emailAddress) next.set('email', emailAddress);
+    void signOut({ redirectUrl: `${window.location.origin}${basePath}/sign-up?${next}` });
+  }, [isLoaded, fromInvitation, isSignedIn, signOut, emailAddress]);
+
+  if (!isLoaded || (fromInvitation && isSignedIn)) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-[#eef4f6] px-4">
+        <p className="text-sm text-[#64748b]">
+          {fromInvitation && isSignedIn ? 'Signing out so you can create the invited account…' : 'Loading…'}
+        </p>
+      </div>
+    );
+  }
+
+  if (isSignedIn) {
+    return <Redirect to="/workspace" />;
+  }
+
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-[#eef4f6] px-4">
+      <SignUp
+        key={emailAddress || 'sign-up'}
+        routing="path"
+        path={`${basePath}/sign-up`}
+        signInUrl={`${basePath}/sign-in`}
+        forceRedirectUrl={redirect}
+        signInForceRedirectUrl={redirect}
+        initialValues={emailAddress ? { emailAddress } : undefined}
+      />
+    </div>
+  );
 }
 
 export function ClerkSessionBridge({ children }: { children: ReactNode }) {

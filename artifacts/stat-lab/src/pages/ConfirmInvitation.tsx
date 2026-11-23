@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useSearch } from 'wouter';
+import { basePath } from '@/auth/clerk-config';
 import { httpService } from '@/lib/http-service';
+import {
+  parseWorkspaceMember,
+  storeInvitationMember,
+} from '@/lib/workspace-members';
+
+function invitationSignUpUrl(email?: string) {
+  const params = new URLSearchParams({ fromInvitation: '1' });
+  if (email) params.set('email', email);
+  return `${window.location.origin}${basePath}/sign-up?${params}`;
+}
 
 export function ConfirmInvitationPage() {
   const search = useSearch();
@@ -21,10 +32,18 @@ export function ConfirmInvitationPage() {
 
     httpService
       .post('/confirm_invitation', { token })
-      .then(() => {
+      .then((res) => {
         if (cancelled) return;
+
+        const member = parseWorkspaceMember(res);
+        if (member) storeInvitationMember(member);
+
         setStatus('success');
-        setMessage('Invitation confirmed.');
+        setMessage('Invitation confirmed. Redirecting to sign up…');
+
+        // Full navigation so Clerk remounts SignUp with invitation initialValues
+        // (SPA setLocation was bouncing signed-in sessions to /workspace).
+        window.location.assign(invitationSignUpUrl(member?.email?.trim()));
       })
       .catch((error) => {
         if (cancelled) return;
@@ -42,18 +61,14 @@ export function ConfirmInvitationPage() {
       <div className="w-full max-w-md rounded-xl border border-[#d2dfe3] bg-white p-6 text-center shadow-sm">
         <p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#147b69]">Invitation</p>
         <h1 className="mt-2 text-xl font-bold text-[#142a3d]">Confirm invitation</h1>
-          {status === 'success' ? (
-              <Signup email_address="rooms@gmail.com" />
-          ) : (
-              <p
-                  className={`mt-3 text-sm ${
-                      status === 'error' ? 'text-[#922f27]' : 'text-[#64748b]'
-                  }`}
-                  role="status"
-              >
-                  {message}
-              </p>
-          )}
+        <p
+          className={`mt-3 text-sm ${
+            status === 'error' ? 'text-[#922f27]' : status === 'success' ? 'text-[#095e55]' : 'text-[#64748b]'
+          }`}
+          role="status"
+        >
+          {message}
+        </p>
       </div>
     </main>
   );

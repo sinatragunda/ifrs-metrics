@@ -1,5 +1,6 @@
 import { publishHttpError } from '@/lib/http-error-store';
 import { beginHttpRequest, endHttpRequest } from '@/lib/http-loading-store';
+import { showErrorPopup } from '@/lib/status-popup-store';
 
 export type TokenGetter = () => Promise<string | null | undefined> | string | null | undefined;
 
@@ -10,11 +11,16 @@ export type HttpRequestOptions = Omit<RequestInit, 'method' | 'body'> & {
   body?: unknown;
   auth?: boolean;
   query?: Record<string, string | number | boolean | null | undefined>;
-  /** When false, failed requests are not published to the global danger banner. */
+  /** When false, failed requests are not shown in the global status popup / banner. */
   notifyError?: boolean;
   /** When false, the request does not show the global loading overlay. */
   showLoading?: boolean;
 };
+
+function notifyRequestFailure(message: string, status?: number, url?: string) {
+  publishHttpError({ message, status, url });
+  showErrorPopup(message, status ? `Request failed · ${status}` : 'Request failed');
+}
 
 export class HttpError extends Error {
   readonly name = 'HttpError';
@@ -127,11 +133,7 @@ export class HttpService {
       if (!response.ok) {
         const error = new HttpError(response, data, url);
         if (notifyError) {
-          publishHttpError({
-            message: error.message.replace(/^HTTP\s+/, ''),
-            status: error.status,
-            url: error.url,
-          });
+          notifyRequestFailure(error.message.replace(/^HTTP\s+/, ''), error.status, error.url);
         }
         throw error;
       }
@@ -139,7 +141,7 @@ export class HttpService {
     } catch (error) {
       if (error instanceof HttpError) throw error;
       const message = error instanceof Error ? error.message : 'Network request failed.';
-      if (notifyError) publishHttpError({ message, url });
+      if (notifyError) notifyRequestFailure(message, undefined, url);
       throw error instanceof Error ? error : new Error(message);
     } finally {
       if (showLoading) endHttpRequest();

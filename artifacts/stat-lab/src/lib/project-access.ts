@@ -1,5 +1,6 @@
 import type { Project, WorkspaceRecord } from '@/lib/workspace-types';
 import {httpService} from "@/lib/http-service.ts";
+import {showErrorPopup, showSuccessPopup} from "@/lib/status-popup-store.ts";
 
 
 
@@ -34,17 +35,11 @@ export function readPendingInvites(): PendingInvite[] {
   }
 }
 
-export function sendPendingInvites(invites: PendingInvite[]) {
+export function sendPendingInvites(success_callback , invites: PendingInvite[]) {
 
-    const callback = (res : any)=>{
-        alert(JSON.stringify(res))
-    };
+    const error =  (e : any)=> showErrorPopup('Failed to create invitation.Try again.');
 
-    const error =  (e : any)=>{
-        alert(JSON.stringify(e));
-    }
-
-    httpService.post(invitationApiUrl, invites).then(callback ,error);
+    httpService.post(invitationApiUrl, invites).then(success_callback ,error);
 
 }
 
@@ -72,7 +67,7 @@ export function addProjectCollaborator(projectId: string, workspaceId: string, e
   if (existing) {
     if (!existing.projectIds.includes(projectId)) {
       existing.projectIds = [...existing.projectIds, projectId];
-      sendPendingInvites(invites);
+      sendPendingInvites(null ,invites);
     }
     return existing;
   }
@@ -83,7 +78,7 @@ export function addProjectCollaborator(projectId: string, workspaceId: string, e
     projectIds: [projectId],
     invitedAt: new Date().toISOString(),
   };
-  sendPendingInvites([...invites, invite]);
+  sendPendingInvites(null ,[...invites, invite]);
   return invite;
 }
 
