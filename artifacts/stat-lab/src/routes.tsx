@@ -11,6 +11,7 @@ import { AccountBillingRoute, AccountRoute } from '@/pages/AccountPages';
 import { CheckoutReviewPage } from '@/pages/CheckoutReviewPage';
 import { ConfirmInvitationPage } from '@/pages/ConfirmInvitation';
 import { WorkspaceAppRoute } from '@/pages/Workspace';
+import  {SignUpComplete} from  '@/pages/SignupComplete';
 
 export function LocalRoutes() {
   return (
@@ -27,6 +28,7 @@ export function LocalRoutes() {
         <Route path="/checkout" component={ClerkSetupPage}/>
         <Route path="/sign-in/*?" component={ClerkSetupPage}/>
         <Route path="/sign-up/*?" component={ClerkSetupPage}/>
+        <Route path="/sign-up-complete" component={SignUpComplete}/>
         <Route component={NotFound}/>
       </Switch>
     </SessionUserContext.Provider>
@@ -59,6 +61,7 @@ export function ClerkRoutes() {
         <Route path="/checkout" component={CheckoutReviewPage}/>
         <Route path="/sign-in/*?" component={SignInPage}/>
         <Route path="/sign-up/*?" component={SignUpPage}/>
+        <Route path="/sign-up-complete" component={SignUpComplete}/>
         <Route component={NotFound}/>
       </Switch>
     </ClerkSessionBridge>

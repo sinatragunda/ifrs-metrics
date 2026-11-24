@@ -94,7 +94,7 @@ export class HttpService {
       method = 'GET',
       body,
       auth = true,
-      notifyError = true,
+      notifyError = false,
       showLoading = true,
       query,
       headers: headersInit,

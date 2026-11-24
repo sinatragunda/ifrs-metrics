@@ -6,9 +6,14 @@ import { useSessionUser } from '@/auth/session';
 import { UserAccountMenu } from '@/components/UserAccountMenu';
 import { catalog, columnLetter, demo, fmt, mean, numericFields, nums, toDataset, toDatasetFromMatrix, twoSidedTPValue, variance } from '@/lib/dataset';
 import { visibleProjectsInWorkspace, visibleWorkspaces } from '@/lib/project-access';
+import { httpService } from '@/lib/http-service';
 import {readProjectStore, readProjectStoreAsync} from '@/lib/project-store';
+import { showErrorPopup } from '@/lib/status-popup-store';
 import { DEFAULT_WORKSPACE_ID, projectStandardLabels, type ChatMessage, type Dataset, type Project, type ProjectFile, type ProjectStandard, type ProjectStore, type Saved } from '@/lib/workspace-types';
 import { WorkspaceHomeSection } from '@/pages/WorkspaceHome';
+
+const PROJECTS_API_URL = String(import.meta.env.VITE_PROJECTS_API_URL ?? '');
+const PROJECTS_TEMPLATE_API_URL  = `${PROJECTS_API_URL}/template`;
 
 export function WorkspaceAppRoute() {
   const user = useSessionUser();
@@ -74,6 +79,16 @@ export function Workspace() {
     setError('');
   };
 
+    useEffect(() => {
+        const callback = (res: any)=>{
+            rest.ifrs_standards
+        };
+
+        const error = ()=> showErrorPopup('Failied to load project templates');
+
+        httpService.get(PROJECTS_TEMPLATE_API_URL).then(callback ,error);
+    }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -86,7 +101,6 @@ export function Workspace() {
         else if (onAppRoute) setActiveTab('data');
       })
       .catch((err) => {
-        console.error('workspace load failed, keeping local', err);
         if (!cancelled && (!user || !projectStore.activeProjectId)) setActiveTab('lab');
       });
 
@@ -253,10 +267,44 @@ export function Workspace() {
   const createProject = () => {
     const name = projectNameInput.trim();
     if (!name || !projectStandardInput) return;
-    const project: Project = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name, standard: projectStandardInput, createdAt: new Date().toISOString(), workspaceId: projectStore.activeWorkspaceId, ownerId: user?.id ?? null, ownerName: user?.fullName || user?.primaryEmailAddress?.emailAddress || 'Demo session', files: [] };
-    setProjectStore((old) => ({ ...old, projects: [...old.projects, project], activeProjectId: project.id, activeFileId: null }));
-    setProjectNameInput('');
-    setProjectStandardInput('');
+    const project: Project = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name,
+      standard: projectStandardInput,
+      createdAt: new Date().toISOString(),
+      workspaceId: projectStore.activeWorkspaceId,
+      ownerId: user?.id ?? null,
+      ownerName: user?.fullName || user?.primaryEmailAddress?.emailAddress || 'Demo session',
+      files: [],
+    };
+
+    const applyCreated = (created: Project) => {
+      setProjectStore((old) => ({
+        ...old,
+        projects: [...old.projects, created],
+        activeProjectId: created.id,
+        activeFileId: null,
+      }));
+      setProjectNameInput('');
+      setProjectStandardInput('');
+    };
+
+    if (!PROJECTS_API_URL) {
+      applyCreated(project);
+      return;
+    }
+
+    void httpService
+      .post(PROJECTS_API_URL, project)
+      .then((res) => {
+        const remote = res && typeof res === 'object' ? (res as Partial<Project>) : null;
+        applyCreated({
+          ...project,
+          id: typeof remote?.id === 'string' && remote.id ? remote.id : project.id,
+          name: typeof remote?.name === 'string' && remote.name ? remote.name : project.name,
+          createdAt: typeof remote?.createdAt === 'string' && remote.createdAt ? remote.createdAt : project.createdAt,
+        });
+      }, () => showErrorPopup('Failed to create project. Try again.'));
   };
   const selectProject = (project: Project) => {
     const file = project.files.find((item) => item.id === projectStore.activeFileId) ?? project.files[0];
@@ -645,7 +693,10 @@ export function Workspace() {
         </div>
         <form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); createProject(); }}>
           <input value={projectNameInput} onChange={(event) => setProjectNameInput(event.target.value)} placeholder="New project name" aria-label="New project name" className="min-w-0 flex-1 rounded-lg border border-[#d2dfe3] bg-[#ffffff] px-3 py-2.5 text-sm"/>
-          <select value={projectStandardInput} onChange={(event) => setProjectStandardInput(event.target.value as ProjectStandard | '')} aria-label="Project standard" required className="rounded-lg border border-[#d2dfe3] bg-[#ffffff] px-3 py-2.5 text-sm text-[#40596b]">
+          <select
+              value={projectStandardInput}
+              onChange={(event) => setProjectStandardInput(event.target.value as ProjectStandard | '')}
+              aria-label="Project standard" required className="rounded-lg border border-[#d2dfe3] bg-[#ffffff] px-3 py-2.5 text-sm text-[#40596b]">
             <option value="" disabled>Select a project standard</option>
             <option value="ifrs16">{projectStandardLabels.ifrs16}</option>
             <option value="ifrs9">{projectStandardLabels.ifrs9}</option>
@@ -653,6 +704,7 @@ export function Workspace() {
             <option value="multiple">{projectStandardLabels.multiple}</option>
             <option value="general">{projectStandardLabels.general}</option>
           </select>
+
           <button type="submit" disabled={!projectNameInput.trim() || !projectStandardInput} className="btn-primary disabled:opacity-50"><FolderPlus size={14}/> Start project</button>
         </form>
         <div className="mt-5 grid gap-4 md:grid-cols-[.85fr_1.15fr]">

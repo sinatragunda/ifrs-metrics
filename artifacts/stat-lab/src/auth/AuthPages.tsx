@@ -29,6 +29,8 @@ export function SignUpPage() {
   const { signOut } = useClerk();
   const redirect = authRedirectUrl();
   const params = new URLSearchParams(search);
+  const unsafeParams = params.get('unsafe-metadata');
+  const unsafeMetadata: SignUpUnsafeMetadata = unsafeParams ? JSON.parse(unsafeParams) : {};
   const fromInvitation = params.get('fromInvitation') === '1';
   const invitation = readInvitationMember();
   const emailFromQuery = params.get('email')?.trim() || '';
@@ -65,6 +67,7 @@ export function SignUpPage() {
         path={`${basePath}/sign-up`}
         signInUrl={`${basePath}/sign-in`}
         forceRedirectUrl={redirect}
+        unsafeMetadata={ unsafeMetadata }
         signInForceRedirectUrl={redirect}
         initialValues={emailAddress ? { emailAddress } : undefined}
       />

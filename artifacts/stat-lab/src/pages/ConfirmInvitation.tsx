@@ -7,9 +7,17 @@ import {
   storeInvitationMember,
 } from '@/lib/workspace-members';
 
-function invitationSignUpUrl(email?: string) {
+function invitationSignUpUrl(email?: string ,unsafeMetadata? : SignUpUnsafeMetadata) {
   const params = new URLSearchParams({ fromInvitation: '1' });
-  if (email) params.set('email', email);
+  if (email) {
+      params.set('email', email);
+  }
+  if(unsafeMetadata)params.set('unsafe_metadata',JSON.stringify(unsafeMetadata));
+
+  params.set('returnTo','sign-up-complete');
+
+  alert("params set "+params);
+
   return `${window.location.origin}${basePath}/sign-up?${params}`;
 }
 
@@ -32,8 +40,10 @@ export function ConfirmInvitationPage() {
 
     httpService
       .post('/confirm_invitation', { token })
-      .then((res) => {
+      .then((res :any) => {
         if (cancelled) return;
+
+        alert(JSON.stringify(res));
 
         const member = parseWorkspaceMember(res);
         if (member) storeInvitationMember(member);
@@ -43,7 +53,12 @@ export function ConfirmInvitationPage() {
 
         // Full navigation so Clerk remounts SignUp with invitation initialValues
         // (SPA setLocation was bouncing signed-in sessions to /workspace).
-        window.location.assign(invitationSignUpUrl(member?.email?.trim()));
+        const unsafeMetadata = {
+            'post-event':'workspace_membership_join',
+            'invitation_id' : res.get('invitation_id'),
+        };
+
+        window.location.assign(invitationSignUpUrl(member?.email?.trim() ,unsafeMetadata));
       })
       .catch((error) => {
         if (cancelled) return;

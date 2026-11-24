@@ -10,6 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_PROJECTS_API_URL: string;
   readonly VITE_INVITATION_API_URL: string;
   readonly VITE_WORKSPACE_API_URL: string;
+  readonly VITE_USERS_API_URL: string;
 }
 
 interface ImportMeta {
